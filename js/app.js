@@ -1,0 +1,542 @@
+/* Fantasy Football HQ — client-side app. All state lives in localStorage. */
+
+const STORAGE_KEY = "ffhq_state_v2";
+const DEFAULT_SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DST", "K"];
+const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
+const INJURY_LEVELS = ["Healthy", "Questionable", "Doubtful", "Out", "IR"];
+const SEVERITY = { Healthy: 0, Questionable: 1, Doubtful: 2, Out: 3, IR: 3 };
+
+function slugify(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function buildSeedState() {
+  const players = SEED_PLAYERS.map(([name, pos, team, bye, tier], idx) => ({
+    id: slugify(name) + "-" + pos.toLowerCase(),
+    name, pos, team, bye,
+    rank: idx + 1,
+    tier,
+    status: "available", // available | mine | other
+    injury: "Healthy",
+  }));
+  return {
+    players,
+    slots: DEFAULT_SLOTS.slice(),
+    rosterAssignment: {},   // slotIndex -> playerId  (season default plan)
+    weeklyLineup: {},       // week -> { slotIndex -> playerId }
+    currentWeek: 1,
+  };
+}
+
+let STATE = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { /* fall through to seed */ }
+  return buildSeedState();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function playerById(id) {
+  return STATE.players.find((p) => p.id === id);
+}
+
+function minePlayers() {
+  return STATE.players.filter((p) => p.status === "mine");
+}
+
+/* ---------------- Tabs ---------------- */
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  renderAll();
+});
+
+/* ---------------- Week selector ---------------- */
+function initWeekSelect() {
+  const sel = document.getElementById("currentWeek");
+  sel.innerHTML = "";
+  for (let w = 1; w <= 18; w++) {
+    const o = document.createElement("option");
+    o.value = w;
+    o.textContent = "Week " + w;
+    sel.appendChild(o);
+  }
+  sel.value = STATE.currentWeek || 1;
+  sel.addEventListener("change", () => {
+    STATE.currentWeek = parseInt(sel.value, 10);
+    save();
+    renderLineupTab();
+  });
+}
+
+/* ================= DRAFT BOARD ================= */
+let draftSort = { key: "rank", dir: 1 };
+
+function renderDraftSummary() {
+  const mine = minePlayers();
+  const other = STATE.players.filter((p) => p.status === "other").length;
+  const avail = STATE.players.filter((p) => p.status === "available").length;
+  const posCounts = {};
+  mine.forEach((p) => (posCounts[p.pos] = (posCounts[p.pos] || 0) + 1));
+  const posStr = Object.keys(posCounts).sort().map((k) => `${k}: <b>${posCounts[k]}</b>`).join("  ·  ");
+  document.getElementById("draftSummary").innerHTML =
+    `My picks: <b>${mine.length}</b> &nbsp;|&nbsp; Drafted by others: <b>${other}</b> &nbsp;|&nbsp; Available: <b>${avail}</b>` +
+    (posStr ? ` &nbsp;|&nbsp; ${posStr}` : "");
+}
+
+function renderDraftTable() {
+  const search = document.getElementById("draftSearch").value.trim().toLowerCase();
+  const posFilter = document.getElementById("draftPosFilter").value;
+  const statusFilter = document.getElementById("draftStatusFilter").value;
+
+  let rows = STATE.players.filter((p) => {
+    if (posFilter !== "ALL" && p.pos !== posFilter) return false;
+    if (statusFilter === "AVAILABLE" && p.status !== "available") return false;
+    if (statusFilter === "MINE" && p.status !== "mine") return false;
+    if (statusFilter === "OTHER" && p.status !== "other") return false;
+    if (search && !(p.name.toLowerCase().includes(search) || p.team.toLowerCase().includes(search))) return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    const k = draftSort.key;
+    let av = a[k], bv = b[k];
+    if (typeof av === "string") { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if (av < bv) return -1 * draftSort.dir;
+    if (av > bv) return 1 * draftSort.dir;
+    return 0;
+  });
+
+  const tbody = document.getElementById("draftTbody");
+  tbody.innerHTML = "";
+  rows.forEach((p) => {
+    const tr = document.createElement("tr");
+    if (p.status === "mine") tr.classList.add("drafted-mine");
+    if (p.status === "other") tr.classList.add("drafted-other");
+    tr.innerHTML = `
+      <td>${p.rank}</td>
+      <td>${p.tier ?? ""}</td>
+      <td>${p.name}</td>
+      <td><span class="badge badge-${p.pos}">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.bye}</td>
+      <td>${statusLabel(p)}</td>
+      <td class="row-actions"></td>
+    `;
+    const actionsTd = tr.querySelector(".row-actions");
+    actionsTd.appendChild(actionButtonsFor(p));
+    tbody.appendChild(tr);
+  });
+}
+
+function statusLabel(p) {
+  if (p.status === "mine") return `<span class="status-pill status-Healthy">My Team</span>`;
+  if (p.status === "other") return `<span class="status-pill status-Out">Drafted</span>`;
+  return `<span class="status-pill status-Questionable">Available</span>`;
+}
+
+function actionButtonsFor(p) {
+  const wrap = document.createElement("div");
+  wrap.style.display = "flex";
+  wrap.style.gap = "6px";
+  if (p.status === "available") {
+    wrap.appendChild(mkBtn("Draft to Me", () => setStatus(p.id, "mine")));
+    wrap.appendChild(mkBtn("Mark Taken", () => setStatus(p.id, "other")));
+  } else {
+    wrap.appendChild(mkBtn("Undo", () => setStatus(p.id, "available")));
+  }
+  return wrap;
+}
+
+function mkBtn(label, fn) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.addEventListener("click", fn);
+  return b;
+}
+
+function setStatus(id, status) {
+  const p = playerById(id);
+  if (!p) return;
+  p.status = status;
+  if (status !== "mine") {
+    // remove from any roster/lineup assignments
+    Object.keys(STATE.rosterAssignment).forEach((k) => {
+      if (STATE.rosterAssignment[k] === id) delete STATE.rosterAssignment[k];
+    });
+    Object.values(STATE.weeklyLineup).forEach((wk) => {
+      Object.keys(wk).forEach((k) => { if (wk[k] === id) delete wk[k]; });
+    });
+  }
+  save();
+  renderAll();
+  toast(`${p.name} → ${status === "mine" ? "added to your team" : status === "other" ? "marked drafted" : "back to available"}`);
+}
+
+document.getElementById("draftSearch").addEventListener("input", renderDraftTable);
+document.getElementById("draftPosFilter").addEventListener("change", renderDraftTable);
+document.getElementById("draftStatusFilter").addEventListener("change", renderDraftTable);
+document.getElementById("resetDraftBtn").addEventListener("click", () => {
+  if (!confirm("Reset draft? This clears all draft picks (players stay in the pool) and your roster.")) return;
+  STATE.players.forEach((p) => (p.status = "available"));
+  STATE.rosterAssignment = {};
+  STATE.weeklyLineup = {};
+  save();
+  renderAll();
+  toast("Draft reset.");
+});
+document.querySelector("#draftTable thead").addEventListener("click", (e) => {
+  const th = e.target.closest("th[data-sort]");
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (draftSort.key === key) draftSort.dir *= -1;
+  else { draftSort.key = key; draftSort.dir = 1; }
+  renderDraftTable();
+});
+
+/* ================= MY TEAM (season default lineup) ================= */
+function eligibleForSlot(slotName, playerPos) {
+  if (slotName === "FLEX") return FLEX_ELIGIBLE.includes(playerPos);
+  return slotName === playerPos;
+}
+
+function renderRosterGrid(containerId, assignment, onChange, weekMode, week) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  const mine = minePlayers();
+  const usedIds = new Set(Object.values(assignment).filter(Boolean));
+
+  STATE.slots.forEach((slotName, idx) => {
+    const card = document.createElement("div");
+    const assignedId = assignment[idx];
+    const p = assignedId ? playerById(assignedId) : null;
+    card.className = "slot-card" + (p ? "" : " empty");
+
+    let flags = "";
+    let alertFlag = false;
+    if (p && weekMode) {
+      if (p.bye === week) { flags += `<span class="status-pill status-Bye">BYE Wk ${week}</span>`; alertFlag = true; }
+      if (p.injury !== "Healthy") { flags += `<span class="status-pill status-${p.injury}">${p.injury}</span>`; if (p.injury === "Out" || p.injury === "IR" || p.injury === "Doubtful") alertFlag = true; }
+    } else if (p) {
+      if (p.injury !== "Healthy") flags += `<span class="status-pill status-${p.injury}">${p.injury}</span>`;
+    }
+    if (alertFlag) card.classList.add("alert");
+
+    card.innerHTML = `
+      <div class="slot-label">${slotName}${weekMode ? " · Wk " + week : ""}</div>
+      ${p
+        ? `<div class="slot-player-name">${p.name}</div>
+           <div class="slot-player-meta"><span class="badge badge-${p.pos}">${p.pos}</span> ${p.team} · Bye ${p.bye}</div>
+           <div class="slot-flags">${flags}</div>`
+        : `<div class="slot-empty-text">Empty slot</div>`
+      }
+    `;
+
+    const select = document.createElement("select");
+    select.className = "slot-select";
+    const emptyOpt = document.createElement("option");
+    emptyOpt.value = "";
+    emptyOpt.textContent = "— empty —";
+    select.appendChild(emptyOpt);
+
+    mine
+      .filter((cand) => eligibleForSlot(slotName, cand.pos))
+      .filter((cand) => cand.id === assignedId || !usedIds.has(cand.id))
+      .sort((a, b) => a.rank - b.rank)
+      .forEach((cand) => {
+        const o = document.createElement("option");
+        o.value = cand.id;
+        let tag = "";
+        if (weekMode && cand.bye === week) tag = " [BYE]";
+        else if (cand.injury !== "Healthy") tag = ` [${cand.injury}]`;
+        o.textContent = `${cand.name} (${cand.pos}, ${cand.team})${tag}`;
+        if (cand.id === assignedId) o.selected = true;
+        select.appendChild(o);
+      });
+
+    select.addEventListener("change", () => onChange(idx, select.value || null));
+    card.appendChild(select);
+    container.appendChild(card);
+  });
+}
+
+function renderBenchTable(tbodyId, assignment) {
+  const tbody = document.getElementById(tbodyId);
+  tbody.innerHTML = "";
+  const usedIds = new Set(Object.values(assignment).filter(Boolean));
+  const bench = minePlayers().filter((p) => !usedIds.has(p.id)).sort((a, b) => a.rank - b.rank);
+  bench.forEach((p) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.name}</td>
+      <td><span class="badge badge-${p.pos}">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.bye}</td>
+      <td></td>
+      <td></td>
+    `;
+    const injuryTd = tr.children[4];
+    const injSel = document.createElement("select");
+    injSel.className = "injury-select";
+    INJURY_LEVELS.forEach((lvl) => {
+      const o = document.createElement("option");
+      o.value = lvl; o.textContent = lvl;
+      if (p.injury === lvl) o.selected = true;
+      injSel.appendChild(o);
+    });
+    injSel.addEventListener("change", () => {
+      p.injury = injSel.value;
+      save();
+      renderAll();
+    });
+    injuryTd.appendChild(injSel);
+
+    const actionsTd = tr.children[5];
+    actionsTd.appendChild(mkBtn("Drop", () => setStatus(p.id, "available")));
+    tbody.appendChild(tr);
+  });
+}
+
+function renderTeamTab() {
+  renderRosterGrid("rosterGrid", STATE.rosterAssignment, (idx, val) => {
+    if (val) STATE.rosterAssignment[idx] = val;
+    else delete STATE.rosterAssignment[idx];
+    save();
+    renderAll();
+  }, false, null);
+  renderBenchTable("benchTbody", STATE.rosterAssignment);
+}
+
+/* ================= WEEKLY LINEUP ================= */
+// The weekly lineup defaults to the season roster plan, but any slot can be
+// overridden for a specific week (manually or via auto-optimize) without
+// losing that default — overrides are stored sparsely per week/slot,
+// including explicit "empty" (null), and merged with the default on read.
+function effectiveWeekAssignment(week) {
+  const overrides = STATE.weeklyLineup[week] || {};
+  const result = {};
+  STATE.slots.forEach((_, idx) => {
+    result[idx] = Object.prototype.hasOwnProperty.call(overrides, idx)
+      ? overrides[idx]
+      : STATE.rosterAssignment[idx] || null;
+  });
+  return result;
+}
+
+function renderLineupTab() {
+  const week = STATE.currentWeek;
+  const assignment = effectiveWeekAssignment(week);
+
+  renderRosterGrid("lineupGrid", assignment, (idx, val) => {
+    if (!STATE.weeklyLineup[week]) STATE.weeklyLineup[week] = {};
+    STATE.weeklyLineup[week][idx] = val || null;
+    save();
+    renderLineupTab();
+  }, true, week);
+  renderBenchTable("lineupBenchTbody", assignment);
+
+  let alerts = 0;
+  STATE.slots.forEach((slotName, idx) => {
+    const p = assignment[idx] ? playerById(assignment[idx]) : null;
+    if (!p) { alerts++; return; }
+    if (p.bye === week) alerts++;
+    else if (p.injury === "Out" || p.injury === "IR" || p.injury === "Doubtful") alerts++;
+  });
+  document.getElementById("lineupAlerts").textContent = alerts
+    ? `⚠ ${alerts} slot(s) need attention this week`
+    : "✓ Lineup looks good for this week";
+}
+
+function autoOptimizeWeek() {
+  const week = STATE.currentWeek;
+  const pool = minePlayers().map((p) => ({
+    player: p,
+    severity: p.bye === week ? 3 : SEVERITY[p.injury],
+  }));
+
+  const newAssignment = {};
+  const used = new Set();
+
+  const order = STATE.slots
+    .map((name, idx) => ({ name, idx }))
+    .sort((a, b) => (a.name === "FLEX") - (b.name === "FLEX"));
+
+  order.forEach(({ name, idx }) => {
+    const candidates = pool
+      .filter((c) => !used.has(c.player.id) && eligibleForSlot(name, c.player.pos))
+      .sort((a, b) => a.severity - b.severity || a.player.rank - b.player.rank);
+    if (candidates.length) {
+      const chosen = candidates[0];
+      newAssignment[idx] = chosen.player.id;
+      used.add(chosen.player.id);
+    } else {
+      newAssignment[idx] = null;
+    }
+  });
+
+  STATE.weeklyLineup[week] = newAssignment;
+  save();
+  renderLineupTab();
+  toast("Lineup auto-optimized for Week " + week);
+}
+
+document.getElementById("autoOptimizeBtn").addEventListener("click", autoOptimizeWeek);
+
+/* ================= IMPORT / EXPORT ================= */
+function parseCsv(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (!lines.length) return [];
+  const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const cells = line.split(",").map((c) => c.trim());
+    const obj = {};
+    header.forEach((h, i) => (obj[h] = cells[i]));
+    return obj;
+  });
+}
+
+function importCsv(text) {
+  const rows = parseCsv(text);
+  if (!rows.length) { toast("No rows found in CSV."); return; }
+  const existingByName = {};
+  STATE.players.forEach((p) => (existingByName[p.name.toLowerCase() + "|" + p.pos] = p));
+
+  const newPlayers = rows.map((r, i) => {
+    const name = r.name || "Unknown";
+    const pos = (r.pos || "").toUpperCase();
+    const key = name.toLowerCase() + "|" + pos;
+    const prev = existingByName[key];
+    return {
+      id: prev ? prev.id : slugify(name) + "-" + pos.toLowerCase(),
+      name,
+      pos,
+      team: r.team || "FA",
+      bye: parseInt(r.bye, 10) || 0,
+      rank: parseInt(r.rank, 10) || i + 1,
+      tier: parseInt(r.tier, 10) || Math.ceil((parseInt(r.rank, 10) || i + 1) / 12),
+      status: prev ? prev.status : "available",
+      injury: prev ? prev.injury : "Healthy",
+    };
+  });
+
+  STATE.players = newPlayers;
+  // clean up assignments pointing to removed players
+  const validIds = new Set(newPlayers.map((p) => p.id));
+  Object.keys(STATE.rosterAssignment).forEach((k) => {
+    if (!validIds.has(STATE.rosterAssignment[k])) delete STATE.rosterAssignment[k];
+  });
+  Object.values(STATE.weeklyLineup).forEach((wk) => {
+    Object.keys(wk).forEach((k) => { if (!validIds.has(wk[k])) delete wk[k]; });
+  });
+  save();
+  renderAll();
+  toast(`Imported ${newPlayers.length} players.`);
+}
+
+document.getElementById("importBtn").addEventListener("click", () => {
+  const text = document.getElementById("importText").value;
+  if (!text.trim()) { toast("Paste or choose a CSV first."); return; }
+  importCsv(text);
+});
+document.getElementById("importFile").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById("importText").value = reader.result; };
+  reader.readAsText(file);
+});
+
+function toCsv() {
+  const header = "name,pos,team,bye,rank,tier,status,injury";
+  const lines = STATE.players
+    .slice()
+    .sort((a, b) => a.rank - b.rank)
+    .map((p) => [p.name, p.pos, p.team, p.bye, p.rank, p.tier, p.status, p.injury].join(","));
+  return [header, ...lines].join("\n");
+}
+
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("exportCsvBtn").addEventListener("click", () => {
+  downloadFile("fantasy-players.csv", toCsv(), "text/csv");
+});
+document.getElementById("exportJsonBtn").addEventListener("click", () => {
+  downloadFile("fantasy-football-backup.json", JSON.stringify(STATE, null, 2), "application/json");
+});
+document.getElementById("restoreBtn").addEventListener("click", () => {
+  const text = document.getElementById("restoreText").value;
+  if (!text.trim()) { toast("Paste JSON backup first."); return; }
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed.players) throw new Error("missing players");
+    STATE = parsed;
+    save();
+    renderAll();
+    toast("Backup restored.");
+  } catch (e) {
+    toast("Invalid JSON backup.");
+  }
+});
+document.getElementById("restoreFile").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById("restoreText").value = reader.result; };
+  reader.readAsText(file);
+});
+
+document.getElementById("saveSlotsBtn").addEventListener("click", () => {
+  const raw = document.getElementById("slotsInput").value;
+  const slots = raw.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+  if (!slots.length) { toast("Enter at least one slot."); return; }
+  STATE.slots = slots;
+  STATE.rosterAssignment = {};
+  STATE.weeklyLineup = {};
+  save();
+  renderAll();
+  toast("Roster slots saved. Lineups were reset to match the new slots.");
+});
+document.getElementById("resetAllBtn").addEventListener("click", () => {
+  if (!confirm("This wipes ALL data (players, draft, team, lineups) and reloads the default player pool. Continue?")) return;
+  STATE = buildSeedState();
+  save();
+  renderAll();
+  toast("Everything reset to defaults.");
+});
+
+/* ================= RENDER ALL ================= */
+function renderAll() {
+  renderDraftSummary();
+  renderDraftTable();
+  renderTeamTab();
+  renderLineupTab();
+  document.getElementById("slotsInput").value = STATE.slots.join(",");
+}
+
+initWeekSelect();
+renderAll();

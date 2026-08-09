@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fantasy Football HQ</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🏈 Fantasy Football HQ</div>
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="draft">Draft Board</button>
+    <button class="tab-btn" data-tab="team">My Team</button>
+    <button class="tab-btn" data-tab="lineup">Weekly Lineup</button>
+    <button class="tab-btn" data-tab="data">Import / Export</button>
+  </nav>
+  <div class="week-select">
+    <label for="currentWeek">Week</label>
+    <select id="currentWeek"></select>
+  </div>
+</header>
+
+<main>
+
+  <!-- DRAFT BOARD -->
+  <section id="tab-draft" class="tab-panel active">
+    <div class="panel-controls">
+      <input type="text" id="draftSearch" placeholder="Search player or team…">
+      <select id="draftPosFilter">
+        <option value="ALL">All Positions</option>
+        <option value="QB">QB</option>
+        <option value="RB">RB</option>
+        <option value="WR">WR</option>
+        <option value="TE">TE</option>
+        <option value="DST">DST</option>
+        <option value="K">K</option>
+      </select>
+      <select id="draftStatusFilter">
+        <option value="AVAILABLE">Available only</option>
+        <option value="ALL">All players</option>
+        <option value="MINE">My team</option>
+        <option value="OTHER">Drafted by others</option>
+      </select>
+      <button id="resetDraftBtn" class="danger-btn">Reset Draft</button>
+    </div>
+    <div class="draft-summary" id="draftSummary"></div>
+    <div class="table-wrap">
+      <table id="draftTable">
+        <thead>
+          <tr>
+            <th data-sort="rank">Rank</th>
+            <th data-sort="tier">Tier</th>
+            <th data-sort="name">Player</th>
+            <th data-sort="pos">Pos</th>
+            <th data-sort="team">Team</th>
+            <th data-sort="bye">Bye</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="draftTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- MY TEAM -->
+  <section id="tab-team" class="tab-panel">
+    <p class="hint">Assign drafted players to starting slots. Anyone not in a slot sits on the bench automatically.</p>
+    <div class="roster-grid" id="rosterGrid"></div>
+    <h3>Bench</h3>
+    <div class="table-wrap">
+      <table id="benchTable">
+        <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>Actions</th></tr></thead>
+        <tbody id="benchTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- WEEKLY LINEUP -->
+  <section id="tab-lineup" class="tab-panel">
+    <p class="hint">Set each player's status for the selected week. Bye-week players are flagged automatically. Click <strong>Auto-Optimize</strong> to swap out bye/injured/questionable starters for your best healthy bench option.</p>
+    <div class="panel-controls">
+      <button id="autoOptimizeBtn" class="primary-btn">⚡ Auto-Optimize Lineup</button>
+      <span id="lineupAlerts" class="alerts"></span>
+    </div>
+    <div class="roster-grid" id="lineupGrid"></div>
+    <h3>Bench (Week Status)</h3>
+    <div class="table-wrap">
+      <table id="lineupBenchTable">
+        <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury Status</th><th>Actions</th></tr></thead>
+        <tbody id="lineupBenchTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- IMPORT / EXPORT -->
+  <section id="tab-data" class="tab-panel">
+    <div class="data-grid">
+      <div class="data-card">
+        <h3>Import Players (CSV)</h3>
+        <p class="hint">Header row required: <code>name,pos,team,bye,rank,tier</code>. This <strong>replaces</strong> the full player pool (draft status/injury status is preserved for players with matching names).</p>
+        <textarea id="importText" rows="8" placeholder="name,pos,team,bye,rank,tier"></textarea>
+        <div class="btn-row">
+          <input type="file" id="importFile" accept=".csv,text/csv">
+          <button id="importBtn" class="primary-btn">Import</button>
+        </div>
+      </div>
+      <div class="data-card">
+        <h3>Export</h3>
+        <p class="hint">Download your current player pool (with draft/injury status) as CSV, or export a full JSON backup of everything.</p>
+        <div class="btn-row">
+          <button id="exportCsvBtn">Export CSV</button>
+          <button id="exportJsonBtn">Export JSON Backup</button>
+        </div>
+      </div>
+      <div class="data-card">
+        <h3>Restore Backup (JSON)</h3>
+        <textarea id="restoreText" rows="6" placeholder="Paste JSON backup here…"></textarea>
+        <div class="btn-row">
+          <input type="file" id="restoreFile" accept=".json,application/json">
+          <button id="restoreBtn" class="primary-btn">Restore</button>
+        </div>
+      </div>
+      <div class="data-card">
+        <h3>League Settings</h3>
+        <label>Roster slots (comma-separated, use FLEX for RB/WR/TE):</label>
+        <input type="text" id="slotsInput">
+        <div class="btn-row">
+          <button id="saveSlotsBtn" class="primary-btn">Save Slots</button>
+          <button id="resetAllBtn" class="danger-btn">Reset Everything</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="data/players.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

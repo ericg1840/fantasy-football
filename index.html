@@ -25,6 +25,12 @@
 
   <!-- DRAFT BOARD -->
   <section id="tab-draft" class="tab-panel active">
+    <h3 class="section-label">Best Available</h3>
+    <div class="best-available" id="bestAvailable"></div>
+
+    <h3 class="section-label">Your Team Needs</h3>
+    <div class="needs-row" id="needsRow"></div>
+
     <div class="panel-controls">
       <input type="text" id="draftSearch" placeholder="Search player or team…">
       <select id="draftPosFilter">
@@ -42,9 +48,11 @@
         <option value="MINE">My team</option>
         <option value="OTHER">Drafted by others</option>
       </select>
+      <button id="undoPickBtn">↩ Undo Last Pick</button>
       <button id="resetDraftBtn" class="danger-btn">Reset Draft</button>
     </div>
     <div class="draft-summary" id="draftSummary"></div>
+    <div class="pick-history" id="pickHistory"></div>
     <div class="table-wrap">
       <table id="draftTable">
         <thead>

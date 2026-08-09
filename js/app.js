@@ -5,6 +5,12 @@ const DEFAULT_SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DST", "K"];
 const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
 const INJURY_LEVELS = ["Healthy", "Questionable", "Doubtful", "Out", "IR"];
 const SEVERITY = { Healthy: 0, Questionable: 1, Doubtful: 2, Out: 3, IR: 3 };
+const BOARD_POSITIONS = ["QB", "RB", "WR", "TE", "DST", "K"];
+// Typical roster-construction targets (starters + realistic bench depth),
+// used only as a draft-day guidance heuristic, independent of league slot config.
+const RECOMMENDED_COUNTS = { QB: 2, RB: 5, WR: 6, TE: 2, DST: 1, K: 1 };
+// Tier <= this counts as "top tier" for the scarcity note on Best Available.
+const TOP_TIER_CUTOFF = 2;
 
 function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -25,6 +31,7 @@ function buildSeedState() {
     rosterAssignment: {},   // slotIndex -> playerId  (season default plan)
     weeklyLineup: {},       // week -> { slotIndex -> playerId }
     currentWeek: 1,
+    pickLog: [],            // [{playerId, name, pos, status}] most recent last
   };
 }
 
@@ -33,7 +40,11 @@ let STATE = load();
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.pickLog) parsed.pickLog = [];
+      return parsed;
+    }
   } catch (e) { /* fall through to seed */ }
   return buildSeedState();
 }
@@ -173,7 +184,7 @@ function mkBtn(label, fn) {
   return b;
 }
 
-function setStatus(id, status) {
+function setStatus(id, status, opts = {}) {
   const p = playerById(id);
   if (!p) return;
   p.status = status;
@@ -186,9 +197,73 @@ function setStatus(id, status) {
       Object.keys(wk).forEach((k) => { if (wk[k] === id) delete wk[k]; });
     });
   }
+  if (!opts.silent && (status === "mine" || status === "other")) {
+    STATE.pickLog.push({ playerId: id, name: p.name, pos: p.pos, status });
+  }
   save();
   renderAll();
   toast(`${p.name} → ${status === "mine" ? "added to your team" : status === "other" ? "marked drafted" : "back to available"}`);
+}
+
+function undoLastPick() {
+  const last = STATE.pickLog.pop();
+  if (!last) { toast("No picks to undo."); return; }
+  setStatus(last.playerId, "available", { silent: true });
+  toast(`Undid pick: ${last.name}`);
+}
+document.getElementById("undoPickBtn").addEventListener("click", undoLastPick);
+
+function renderPickHistory() {
+  const el = document.getElementById("pickHistory");
+  if (!STATE.pickLog.length) {
+    el.innerHTML = `<span class="empty">No picks yet — draft a player to get started.</span>`;
+    return;
+  }
+  const recent = STATE.pickLog.slice(-6).reverse();
+  el.innerHTML = "Recent: " + recent
+    .map((e) => `<b>${e.name}</b> (${e.pos}${e.status === "other" ? ", taken" : ""})`)
+    .join("  ·  ");
+}
+
+function renderBestAvailable() {
+  const el = document.getElementById("bestAvailable");
+  el.innerHTML = "";
+  BOARD_POSITIONS.forEach((pos) => {
+    const avail = STATE.players
+      .filter((p) => p.pos === pos && p.status === "available")
+      .sort((a, b) => a.rank - b.rank);
+    const card = document.createElement(avail.length ? "button" : "div");
+    card.className = "best-card" + (avail.length ? "" : " empty");
+    if (!avail.length) {
+      card.innerHTML = `<div class="best-card-pos">${pos}</div><div class="best-card-meta">None left</div>`;
+      el.appendChild(card);
+      return;
+    }
+    const top = avail[0];
+    const topTierLeft = avail.filter((p) => p.tier <= TOP_TIER_CUTOFF).length;
+    card.innerHTML = `
+      <div class="best-card-pos">${pos} · Rank ${top.rank}</div>
+      <div class="best-card-name">${top.name}</div>
+      <div class="best-card-meta">${top.team} · Bye ${top.bye}</div>
+      ${topTierLeft ? `<div class="best-card-scarcity">${topTierLeft} top-tier left</div>` : ""}
+    `;
+    card.addEventListener("click", () => setStatus(top.id, "mine"));
+    el.appendChild(card);
+  });
+}
+
+function renderNeeds() {
+  const el = document.getElementById("needsRow");
+  el.innerHTML = "";
+  const mine = minePlayers();
+  BOARD_POSITIONS.forEach((pos) => {
+    const have = mine.filter((p) => p.pos === pos).length;
+    const target = RECOMMENDED_COUNTS[pos];
+    const chip = document.createElement("span");
+    chip.className = "need-chip" + (have >= target ? " filled" : "");
+    chip.innerHTML = `<span class="pos">${pos}</span> ${have}/${target}`;
+    el.appendChild(chip);
+  });
 }
 
 document.getElementById("draftSearch").addEventListener("input", renderDraftTable);
@@ -199,6 +274,7 @@ document.getElementById("resetDraftBtn").addEventListener("click", () => {
   STATE.players.forEach((p) => (p.status = "available"));
   STATE.rosterAssignment = {};
   STATE.weeklyLineup = {};
+  STATE.pickLog = [];
   save();
   renderAll();
   toast("Draft reset.");
@@ -531,7 +607,10 @@ document.getElementById("resetAllBtn").addEventListener("click", () => {
 
 /* ================= RENDER ALL ================= */
 function renderAll() {
+  renderBestAvailable();
+  renderNeeds();
   renderDraftSummary();
+  renderPickHistory();
   renderDraftTable();
   renderTeamTab();
   renderLineupTab();

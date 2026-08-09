@@ -93,6 +93,45 @@ tbody tr.drafted-other{opacity:0.45;}
 
 .alerts{color:var(--warn);font-size:0.85rem;font-weight:600;}
 
+.section-label{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;font-weight:700;}
+
+.best-available{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;}
+.best-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .15s,transform .1s;}
+.best-card:hover{border-color:var(--accent2);transform:translateY(-1px);}
+.best-card:disabled, .best-card.empty{opacity:.5;cursor:default;}
+.best-card.empty:hover{border-color:var(--border);transform:none;}
+.best-card-pos{font-size:.7rem;font-weight:800;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;}
+.best-card-name{font-weight:700;font-size:.92rem;line-height:1.25;}
+.best-card-meta{font-size:.76rem;color:var(--muted);margin-top:3px;}
+.best-card-scarcity{font-size:.72rem;margin-top:6px;color:var(--warn);font-weight:600;}
+
+.needs-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+.need-chip{
+  display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);
+  border-radius:999px;padding:5px 12px;font-size:.8rem;font-weight:600;
+}
+.need-chip .pos{color:var(--muted);}
+.need-chip.filled{border-color:var(--accent);color:var(--accent);}
+.need-chip.filled .pos{color:var(--accent);}
+
+.pick-history{font-size:.82rem;color:var(--muted);margin-bottom:14px;}
+.pick-history b{color:var(--text);}
+.pick-history .empty{font-style:italic;}
+
+@media (max-width:640px){
+  header.topbar{flex-direction:column;align-items:stretch;gap:10px;padding:12px 14px;}
+  .tabs{justify-content:flex-start;}
+  .week-select{justify-content:space-between;}
+  main{padding:14px;}
+  .panel-controls{flex-direction:column;align-items:stretch;}
+  .panel-controls input, .panel-controls select, .panel-controls button{width:100%;}
+  .roster-grid{grid-template-columns:1fr;}
+  .best-available{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
+  table{font-size:.8rem;}
+  thead th, tbody td{padding:7px 8px;}
+  .data-grid{grid-template-columns:1fr;}
+}
+
 select.injury-select{min-width:130px;}
 
 .toast{

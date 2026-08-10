@@ -8,6 +8,8 @@
    (a likely reach). null means no ADP data was available for that player.
    Re-import an updated export any time via the Import/Export tab. */
 
+const SEED_DATA_DATE = "2026-08-09";
+
 const SEED_PLAYERS = [
   // --- RB ---
   ["Jahmyr Gibbs","RB","DET",6,1,0],

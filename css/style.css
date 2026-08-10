@@ -144,6 +144,19 @@ h3{margin:26px 0 12px;font-size:1.05rem;}
 .draft-tracker-setup{font-size:0.85rem;color:var(--muted);}
 .draft-tracker-setup a{color:var(--link);}
 
+.season-overview-wrap{margin-bottom:22px;}
+#seasonOverviewTable{font-size:0.8rem;}
+#seasonOverviewTable th, #seasonOverviewTable td{text-align:center;padding:8px 10px;}
+#seasonOverviewTable th:first-child, #seasonOverviewTable td:first-child{
+  text-align:left;position:sticky;left:0;background:var(--bg2);z-index:1;
+}
+#seasonOverviewTable td:first-child{background:var(--card);font-weight:600;font-family:var(--font-display);letter-spacing:.03em;}
+.avail-cell{font-variant-numeric:tabular-nums;font-weight:600;border-radius:6px;}
+.avail-danger{background:#ff6b6b26;color:#ff9494;}
+.avail-warn{background:#f5b94226;color:#ffca6b;}
+.avail-ok{color:var(--muted);}
+.avail-current{box-shadow:0 0 0 1px var(--link) inset;}
+
 .learn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:24px;}
 .learn-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:6px 18px;}
 .learn-card summary{

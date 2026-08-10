@@ -95,6 +95,17 @@
 
   <!-- WEEKLY LINEUP -->
   <section id="tab-lineup" class="tab-panel">
+    <h3 class="section-label">Season Overview</h3>
+    <p class="hint">How many of your rostered players are available at each position, week by week. <b>Bye weeks</b> are fixed for the season and always accurate; the <b>injury</b> part only reflects each player's <i>current</i> designation applied to every week shown — it will change as the season goes, so treat weeks beyond the next one or two as a bye-only preview and recheck injury status closer to game day.</p>
+    <div id="seasonOverviewAlerts" class="alerts"></div>
+    <div class="table-wrap season-overview-wrap">
+      <table id="seasonOverviewTable">
+        <thead><tr id="seasonOverviewHead"></tr></thead>
+        <tbody id="seasonOverviewBody"></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-label">This Week</h3>
     <p class="hint">Set each player's status for the selected week. Bye-week players are flagged automatically. Click <strong>Auto-Optimize</strong> to swap out bye/injured/questionable starters for your best healthy bench option.</p>
     <div class="panel-controls">
       <button id="autoOptimizeBtn" class="primary-btn">⚡ Auto-Optimize Lineup</button>

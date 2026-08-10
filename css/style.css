@@ -19,6 +19,7 @@ header.topbar{
 .tab-btn.active{color:var(--text);background:var(--accent2);}
 .week-select{display:flex;align-items:center;gap:8px;font-size:0.9rem;color:var(--muted);}
 .week-select select{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 8px;}
+.data-freshness{font-size:0.78rem;color:var(--muted);white-space:nowrap;}
 
 main{padding:20px;max-width:1200px;margin:0 auto;}
 .tab-panel{display:none;}

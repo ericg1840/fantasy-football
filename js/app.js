@@ -36,6 +36,7 @@ function buildSeedState() {
     weeklyLineup: {},       // week -> { slotIndex -> playerId }
     currentWeek: 1,
     pickLog: [],            // [{playerId, name, pos, status}] most recent last
+    dataUpdatedAt: SEED_DATA_DATE,
   };
 }
 
@@ -47,10 +48,17 @@ function load() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (!parsed.pickLog) parsed.pickLog = [];
+      if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }
   return buildSeedState();
+}
+
+function formatDataDate(isoDate) {
+  const d = new Date(isoDate + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 function save() {
@@ -534,6 +542,7 @@ function importCsv(text) {
   });
 
   STATE.players = newPlayers;
+  STATE.dataUpdatedAt = new Date().toISOString().slice(0, 10);
   // clean up assignments pointing to removed players
   const validIds = new Set(newPlayers.map((p) => p.id));
   Object.keys(STATE.rosterAssignment).forEach((k) => {
@@ -590,6 +599,8 @@ document.getElementById("restoreBtn").addEventListener("click", () => {
   try {
     const parsed = JSON.parse(text);
     if (!parsed.players) throw new Error("missing players");
+    if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
+    if (!parsed.pickLog) parsed.pickLog = [];
     STATE = parsed;
     save();
     renderAll();
@@ -635,6 +646,9 @@ function renderAll() {
   renderTeamTab();
   renderLineupTab();
   document.getElementById("slotsInput").value = STATE.slots.join(",");
+  const freshText = "Data: " + formatDataDate(STATE.dataUpdatedAt);
+  document.getElementById("dataFreshness").textContent = freshText;
+  document.getElementById("dataFreshnessDetail").textContent = formatDataDate(STATE.dataUpdatedAt);
 }
 
 initWeekSelect();

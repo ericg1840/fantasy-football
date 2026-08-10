@@ -1,4 +1,4 @@
-/* Fantasy Football HQ — client-side app. All state lives in localStorage. */
+/* Snap Count — client-side app. All state lives in localStorage. */
 
 const STORAGE_KEY = "ffhq_state_v2";
 const DEFAULT_SLOTS = ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "DST", "K"];

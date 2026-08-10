@@ -510,6 +510,14 @@ function renderTeamTab() {
   renderBenchTable("benchTbody", STATE.rosterAssignment);
 }
 
+document.getElementById("resetTeamBtn").addEventListener("click", () => {
+  if (!confirm("Clear your season lineup? All starting slots go back to empty (everyone moves to the bench). Your draft picks are not affected.")) return;
+  STATE.rosterAssignment = {};
+  save();
+  renderAll();
+  toast("Lineup cleared.");
+});
+
 /* ================= WEEKLY LINEUP ================= */
 // The weekly lineup defaults to the season roster plan, but any slot can be
 // overridden for a specific week (manually or via auto-optimize) without
@@ -647,6 +655,15 @@ function autoOptimizeWeek() {
 }
 
 document.getElementById("autoOptimizeBtn").addEventListener("click", autoOptimizeWeek);
+
+document.getElementById("resetWeekLineupBtn").addEventListener("click", () => {
+  const week = STATE.currentWeek;
+  if (!confirm(`Reset Week ${week} back to your season default lineup? Any manual changes or auto-optimize swaps made for this week only will be discarded.`)) return;
+  delete STATE.weeklyLineup[week];
+  save();
+  renderLineupTab();
+  toast(`Week ${week} reset to season default.`);
+});
 
 /* ================= IMPORT / EXPORT ================= */
 function parseCsv(text) {

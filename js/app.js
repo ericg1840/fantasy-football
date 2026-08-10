@@ -37,8 +37,11 @@ function buildSeedState() {
     currentWeek: 1,
     pickLog: [],            // [{playerId, name, pos, status}] most recent last
     dataUpdatedAt: SEED_DATA_DATE,
+    draftSettings: { numTeams: 10, yourSlot: 1, totalRounds: 15 },
   };
 }
+
+const DEFAULT_DRAFT_SETTINGS = { numTeams: 10, yourSlot: 1, totalRounds: 15 };
 
 let STATE = load();
 
@@ -49,6 +52,7 @@ function load() {
       const parsed = JSON.parse(raw);
       if (!parsed.pickLog) parsed.pickLog = [];
       if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
+      if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }
@@ -248,6 +252,64 @@ function renderPickHistory() {
   el.innerHTML = "Recent: " + recent
     .map((e) => `<b>${e.name}</b> (${e.pos}${e.status === "other" ? ", taken" : ""})`)
     .join("  ·  ");
+}
+
+// Snake-draft math: which league slot (1..numTeams) is on the clock at a
+// given overall pick number. Odd rounds run 1→N, even rounds run N→1.
+function slotOnClockAt(overallPick, numTeams) {
+  const round = Math.ceil(overallPick / numTeams);
+  const posInRound = overallPick - (round - 1) * numTeams;
+  return round % 2 === 1 ? posInRound : numTeams - posInRound + 1;
+}
+
+function nextOverallPickForSlot(fromPick, yourSlot, numTeams) {
+  let p = fromPick;
+  while (slotOnClockAt(p, numTeams) !== yourSlot) p++;
+  return p;
+}
+
+function renderDraftTracker() {
+  const el = document.getElementById("draftTracker");
+  const { numTeams, yourSlot, totalRounds } = STATE.draftSettings;
+
+  if (!numTeams || numTeams < 2 || !yourSlot || yourSlot < 1 || yourSlot > numTeams) {
+    el.className = "draft-tracker";
+    el.innerHTML = `<span class="draft-tracker-setup">Set your league size and draft slot in <b>Import / Export → Draft Tracker</b> to see live round/pick tracking here.</span>`;
+    return;
+  }
+
+  const picksMade = STATE.pickLog.length;
+  const maxPicks = numTeams * (totalRounds || 15);
+  const currentPick = picksMade + 1;
+
+  if (currentPick > maxPicks) {
+    el.className = "draft-tracker";
+    el.innerHTML = `<span class="draft-tracker-main">Draft complete</span><span class="draft-tracker-progress">${picksMade} / ${maxPicks} picks made</span>`;
+    return;
+  }
+
+  const currentRound = Math.ceil(currentPick / numTeams);
+  const onClockSlot = slotOnClockAt(currentPick, numTeams);
+  const isYourTurn = onClockSlot === yourSlot;
+  const nextYourPick = nextOverallPickForSlot(currentPick, yourSlot, numTeams);
+  const picksAway = nextYourPick - currentPick;
+  const nextRound = Math.ceil(nextYourPick / numTeams);
+
+  el.className = "draft-tracker" + (isYourTurn ? " on-clock" : "");
+  const mainText = isYourTurn
+    ? `🔥 You're on the clock — Round ${currentRound}, Pick ${currentPick} overall`
+    : `Round ${currentRound}, Pick ${currentPick} overall`;
+  const subText = isYourTurn
+    ? `Make your pick, then mark it below.`
+    : `Your next pick: #${nextYourPick} overall (Round ${nextRound}) — ${picksAway} pick${picksAway === 1 ? "" : "s"} away`;
+
+  el.innerHTML = `
+    <div>
+      <div class="draft-tracker-main">${mainText}</div>
+      <div class="draft-tracker-sub">${subText}</div>
+    </div>
+    <div class="draft-tracker-progress">${picksMade} / ${maxPicks} picks made</div>
+  `;
 }
 
 function renderBestAvailable() {
@@ -601,6 +663,7 @@ document.getElementById("restoreBtn").addEventListener("click", () => {
     if (!parsed.players) throw new Error("missing players");
     if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
     if (!parsed.pickLog) parsed.pickLog = [];
+    if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
     STATE = parsed;
     save();
     renderAll();
@@ -636,16 +699,33 @@ document.getElementById("resetAllBtn").addEventListener("click", () => {
   toast("Everything reset to defaults.");
 });
 
+document.getElementById("saveDraftTrackerBtn").addEventListener("click", () => {
+  const numTeams = parseInt(document.getElementById("draftNumTeams").value, 10);
+  const yourSlot = parseInt(document.getElementById("draftYourSlot").value, 10);
+  const totalRounds = parseInt(document.getElementById("draftTotalRounds").value, 10);
+  if (!numTeams || numTeams < 2 || numTeams > 32) { toast("Enter a valid number of teams (2-32)."); return; }
+  if (!yourSlot || yourSlot < 1 || yourSlot > numTeams) { toast("Your draft slot must be between 1 and the number of teams."); return; }
+  if (!totalRounds || totalRounds < 1) { toast("Enter a valid number of rounds."); return; }
+  STATE.draftSettings = { numTeams, yourSlot, totalRounds };
+  save();
+  renderAll();
+  toast("Draft tracker settings saved.");
+});
+
 /* ================= RENDER ALL ================= */
 function renderAll() {
   renderBestAvailable();
   renderNeeds();
+  renderDraftTracker();
   renderDraftSummary();
   renderPickHistory();
   renderDraftTable();
   renderTeamTab();
   renderLineupTab();
   document.getElementById("slotsInput").value = STATE.slots.join(",");
+  document.getElementById("draftNumTeams").value = STATE.draftSettings.numTeams;
+  document.getElementById("draftYourSlot").value = STATE.draftSettings.yourSlot;
+  document.getElementById("draftTotalRounds").value = STATE.draftSettings.totalRounds;
   const freshText = "Data: " + formatDataDate(STATE.dataUpdatedAt);
   document.getElementById("dataFreshness").textContent = freshText;
   document.getElementById("dataFreshnessDetail").textContent = formatDataDate(STATE.dataUpdatedAt);

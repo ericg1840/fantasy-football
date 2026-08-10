@@ -93,6 +93,11 @@ tbody tr.drafted-other{opacity:0.45;}
 
 .alerts{color:var(--warn);font-size:0.85rem;font-weight:600;}
 
+.value-pill{padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:700;font-variant-numeric:tabular-nums;}
+.value-up{background:#22c55e22;color:#4ade80;}
+.value-down{background:#ef444422;color:#f87171;}
+.value-even, .value-na{color:var(--muted);font-size:0.82rem;}
+
 .section-label{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;font-weight:700;}
 
 .best-available{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;}

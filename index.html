@@ -30,6 +30,8 @@
 
   <!-- DRAFT BOARD -->
   <section id="tab-draft" class="tab-panel active">
+    <div class="draft-tracker" id="draftTracker"></div>
+
     <h3 class="section-label">Best Available</h3>
     <div class="best-available" id="bestAvailable"></div>
 
@@ -144,6 +146,19 @@
         <div class="btn-row">
           <button id="saveSlotsBtn" class="primary-btn">Save Slots</button>
           <button id="resetAllBtn" class="danger-btn">Reset Everything</button>
+        </div>
+      </div>
+      <div class="data-card">
+        <h3>Draft Tracker</h3>
+        <p class="hint">Powers the round/pick tracker on the Draft Board. It counts every "Draft to Me" and "Mark Taken" click as one real draft pick, in order — so keep marking opponents' picks as you go for it to stay accurate.</p>
+        <label>Number of teams in your league:</label>
+        <input type="text" id="draftNumTeams" inputmode="numeric">
+        <label>Your draft slot (1 = picks first):</label>
+        <input type="text" id="draftYourSlot" inputmode="numeric">
+        <label>Total rounds (roster size, incl. bench):</label>
+        <input type="text" id="draftTotalRounds" inputmode="numeric">
+        <div class="btn-row">
+          <button id="saveDraftTrackerBtn" class="primary-btn">Save Draft Settings</button>
         </div>
       </div>
     </div>

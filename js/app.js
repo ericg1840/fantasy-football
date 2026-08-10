@@ -504,6 +504,69 @@ function effectiveWeekAssignment(week) {
   return result;
 }
 
+const SEASON_WEEKS = 18;
+
+// A player counts as "available" for a given week if it's not their bye week
+// and their current injury designation isn't Doubtful/Out/IR. Injury status
+// is a single current field (not per-week), so this is only a reliable
+// signal for the near-term weeks — treat anything further out as a
+// bye-only preview, per the hint text on the Season Overview table.
+function isAvailableForWeek(p, week) {
+  if (p.bye === week) return false;
+  return SEVERITY[p.injury] < 2;
+}
+
+function renderSeasonOverview() {
+  const head = document.getElementById("seasonOverviewHead");
+  const body = document.getElementById("seasonOverviewBody");
+  const mine = minePlayers();
+  const currentWeek = STATE.currentWeek;
+
+  head.innerHTML = "<th>Position</th>" +
+    Array.from({ length: SEASON_WEEKS }, (_, i) => `<th>Wk ${i + 1}</th>`).join("");
+
+  const weakWeeks = [];
+  body.innerHTML = "";
+  BOARD_POSITIONS.forEach((pos) => {
+    const atPos = mine.filter((p) => p.pos === pos);
+    const total = atPos.length;
+    const tr = document.createElement("tr");
+    let cells = `<td>${pos}</td>`;
+    for (let week = 1; week <= SEASON_WEEKS; week++) {
+      const availCount = atPos.filter((p) => isAvailableForWeek(p, week)).length;
+      let cls = "avail-cell ";
+      if (total === 0) cls += "avail-ok";
+      else if (availCount === 0) { cls += "avail-danger"; weakWeeks.push({ week, pos }); }
+      else if (availCount === 1) cls += "avail-warn";
+      else cls += "avail-ok";
+      if (week === currentWeek) cls += " avail-current";
+      const label = total === 0 ? "–" : `${availCount}/${total}`;
+      cells += `<td class="${cls}">${label}</td>`;
+    }
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  });
+
+  const el = document.getElementById("seasonOverviewAlerts");
+  if (!mine.length) {
+    el.textContent = "";
+  } else if (weakWeeks.length) {
+    const grouped = {};
+    weakWeeks.forEach(({ week, pos }) => {
+      grouped[week] = grouped[week] || [];
+      grouped[week].push(pos);
+    });
+    const summary = Object.keys(grouped)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((week) => `Wk ${week} (no ${grouped[week].join("/")})`)
+      .join(", ");
+    el.textContent = `⚠ Zero available players: ${summary}`;
+  } else {
+    el.textContent = "✓ No zero-available weeks across your current roster.";
+  }
+}
+
 function renderLineupTab() {
   const week = STATE.currentWeek;
   const assignment = effectiveWeekAssignment(week);
@@ -721,6 +784,7 @@ function renderAll() {
   renderPickHistory();
   renderDraftTable();
   renderTeamTab();
+  renderSeasonOverview();
   renderLineupTab();
   document.getElementById("slotsInput").value = STATE.slots.join(",");
   document.getElementById("draftNumTeams").value = STATE.draftSettings.numTeams;

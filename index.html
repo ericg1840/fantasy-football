@@ -17,6 +17,7 @@
     <button class="tab-btn" data-tab="team">My Team</button>
     <button class="tab-btn" data-tab="lineup">Weekly Lineup</button>
     <button class="tab-btn" data-tab="data">Import / Export</button>
+    <button class="tab-btn" data-tab="learn">Learn</button>
   </nav>
   <div class="week-select">
     <label for="currentWeek">Week</label>
@@ -145,6 +146,112 @@
           <button id="resetAllBtn" class="danger-btn">Reset Everything</button>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- LEARN -->
+  <section id="tab-learn" class="tab-panel">
+    <p class="hint">A quick reference for how fantasy football works, common terms you'll hear on draft day, and how to use this app's tools well. Your league's exact rules can vary — when in doubt, check your league's settings or ask your commissioner.</p>
+
+    <h3 class="section-label">The Basics</h3>
+    <div class="learn-grid">
+      <details class="learn-card" open>
+        <summary>How the game works</summary>
+        <p>You draft a roster of real NFL players, then each week your <b>starting lineup</b> earns points based on those players' real-game stats (yards, touchdowns, receptions, etc). You're matched up against another team in your league each week — most points wins. Most leagues run a regular season through roughly Week 14, then a playoff bracket among the top teams for the final weeks.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Scoring formats</summary>
+        <p>The biggest variable between leagues is how receptions are scored:</p>
+        <ul>
+          <li><b>Standard</b> — no points for catches, only yards and touchdowns.</li>
+          <li><b>PPR</b> (Points Per Reception) — +1 point every time a player catches a pass. Boosts pass-catching RBs, WRs, and TEs significantly.</li>
+          <li><b>Half-PPR</b> — +0.5 per catch, a common middle ground.</li>
+        </ul>
+        <p>Typical baseline scoring: 1 pt / 25 passing yards, 4 pts / passing TD, 1 pt / 10 rushing or receiving yards, 6 pts / rushing or receiving TD, −2 for an interception or lost fumble. Kickers and defenses use their own scales (distance-based for field goals; sacks, turnovers, and points allowed for defense). Confirm your exact league settings — this app's rankings assume a PPR-style format.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Roster positions</summary>
+        <ul>
+          <li><b>QB, RB, WR, TE</b> — standard starting slots for each position.</li>
+          <li><b>FLEX</b> — can be filled by an RB, WR, or TE (whichever you have the best matchup/depth at). Some leagues also use <b>Superflex</b>, which allows a QB in that slot too — this makes QBs far more valuable to draft early.</li>
+          <li><b>DST</b> — your team defense/special teams as a unit; scores on sacks, turnovers, safeties, and defensive/return touchdowns.</li>
+          <li><b>K</b> — kicker; scores on field goals (more for longer ones) and extra points.</li>
+          <li><b>Bench</b> — reserve players not in your starting lineup this week. This is where depth and bye-week insurance live.</li>
+          <li><b>IR</b> — some leagues offer an Injured Reserve slot that doesn't count against your roster limit, only usable for players the NFL has officially designated injured (not just "questionable").</li>
+        </ul>
+      </details>
+    </div>
+
+    <h3 class="section-label">Draft Day</h3>
+    <div class="learn-grid">
+      <details class="learn-card">
+        <summary>Snake vs. auction drafts</summary>
+        <p>Most leagues use a <b>snake draft</b>: pick order reverses each round (if you pick 3rd in round 1, you pick 3rd-from-last in round 2), so everyone gets a similar number of early picks over the whole draft. Some leagues instead run an <b>auction draft</b>, where everyone gets a budget (e.g. $200) to bid on any player, and you build your whole roster within that budget.</p>
+      </details>
+      <details class="learn-card">
+        <summary>ADP, rank, and "value" — what this app's Value column means</summary>
+        <p><b>ADP</b> (Average Draft Position) is where a player is actually getting picked across real drafts. <b>Rank</b> (or ECR, Expert Consensus Ranking) is where analysts think a player <i>should</i> go based on projected performance. The <b>Value column</b> on the Draft Board is the gap between those two: a <span class="status-pill status-Healthy">green +N</span> means experts rate the player better than where they're being drafted — a bargain if they're still on the board. A <span class="status-pill status-Out">red −N</span> means the opposite — the market's drafting them ahead of their expert value, i.e. a likely reach.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Tiers and positional scarcity</summary>
+        <p>Players are often grouped into <b>tiers</b> — clusters of roughly equal value with a real drop-off ("cliff") between one tier and the next. Rather than just chasing the single top-ranked name, it's often smarter to grab the <i>last good player in a tier</i> before it disappears. Some positions (historically tight end) get thin fast after the top options are gone — that's <b>positional scarcity</b>, and it's exactly what the <b>Best Available</b> panel and its "top-tier left" counter on the Draft Board tab are built to surface.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Handcuffing</summary>
+        <p>Drafting your own star running back's backup as a late-round insurance pick. If the starter gets hurt, you already own the player likely to inherit the touches — instead of scrambling on the waiver wire against everyone else in your league.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Using Team Needs to draft a balanced roster</summary>
+        <p>The <b>Your Team Needs</b> chips on the Draft Board track how many players you've drafted at each position against typical roster-construction targets (enough for a realistic bench, not just your starting lineup). A chip turns green once you've hit that target — a quick gut-check against accidentally drafting five wide receivers and forgetting kicker entirely.</p>
+      </details>
+    </div>
+
+    <h3 class="section-label">Managing Your Team During the Season</h3>
+    <div class="learn-grid">
+      <details class="learn-card">
+        <summary>Bye weeks</summary>
+        <p>Every NFL team gets one week off during the season — none of their players score any points that week. This app flags bye weeks automatically on the <b>Weekly Lineup</b> tab (and on your season roster), so you can see the conflict before you're stuck without a starter.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Injury statuses</summary>
+        <ul>
+          <li><b>Questionable (Q)</b> — uncertain, roughly a coin flip; worth checking closer to kickoff.</li>
+          <li><b>Doubtful (D)</b> — unlikely to play.</li>
+          <li><b>Out (O)</b> — confirmed not playing that week.</li>
+          <li><b>IR</b> — on Injured Reserve, out for an extended period.</li>
+        </ul>
+        <p>Set these on the Weekly Lineup or My Team bench tables as news breaks, and the app flags any starter with a non-Healthy status.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Auto-Optimize, explained</summary>
+        <p>The <b>⚡ Auto-Optimize Lineup</b> button on Weekly Lineup rebuilds that week's starting lineup from scratch: any player on bye or marked Out/Doubtful/IR gets bumped for your best available healthy option at that position, ranked by who's actually best (not just first-available). It only touches that specific week — your season-long default roster plan on the My Team tab is untouched, so you don't have to manually revert anything the following week.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Waiver wire &amp; free agents</summary>
+        <p>Players not on anyone's roster are <b>free agents</b>; if someone drops a player or a breakout emerges, they usually go through a <b>waiver period</b> first, awarded by waiver priority or a bidding system called <b>FAAB</b> (Free Agent Acquisition Budget — everyone gets a season-long budget to bid on adds). This app doesn't manage waivers directly, but the Draft Board's search/filter works well as a quick way to check a free agent's rank and value before you bid.</p>
+      </details>
+      <details class="learn-card">
+        <summary>Trades</summary>
+        <p>Most leagues allow trading players directly with other teams, usually with a trade deadline a few weeks before the playoffs. A good trade target: sell a player whose value is unusually high right now ("sell high"), or buy a good player who's temporarily struggling ("buy low") — both often visible as a big gap between their reputation and their <i>current</i> form.</p>
+      </details>
+    </div>
+
+    <h3 class="section-label">Quick Glossary</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>PPR</td><td>Points Per Reception scoring format</td></tr>
+          <tr><td>ADP</td><td>Average Draft Position — where a player is actually being drafted</td></tr>
+          <tr><td>ECR</td><td>Expert Consensus Ranking — where analysts think a player should go</td></tr>
+          <tr><td>Sleeper</td><td>A low-profile player expected to outperform their draft position</td></tr>
+          <tr><td>Bust</td><td>A highly-drafted player who underperforms expectations</td></tr>
+          <tr><td>Handcuff</td><td>A backup player drafted specifically as insurance for your starter at that position</td></tr>
+          <tr><td>Streaming</td><td>Rotating a weaker position (often K or DST) week-to-week based on matchup instead of rostering one all season</td></tr>
+          <tr><td>FAAB</td><td>Free Agent Acquisition Budget — a season-long bidding budget for waiver pickups</td></tr>
+          <tr><td>Flex</td><td>A roster slot fillable by more than one position (usually RB/WR/TE)</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 

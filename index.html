@@ -8,6 +8,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<script>
+  // Apply any stored theme choice before first paint, to avoid a flash of the wrong theme.
+  (function () {
+    try {
+      var t = localStorage.getItem("ffhq_theme");
+      if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -24,6 +33,7 @@
     <select id="currentWeek"></select>
   </div>
   <div class="data-freshness" id="dataFreshness" title="When the player pool (ranks/tiers/ADP) was last refreshed"></div>
+  <button id="themeToggle" class="theme-toggle" title="Toggle light/dark theme" aria-label="Toggle light/dark theme"></button>
 </header>
 
 <main>
@@ -55,6 +65,10 @@
         <option value="MINE">My team</option>
         <option value="OTHER">Drafted by others</option>
       </select>
+      <label class="watchlist-toggle">
+        <input type="checkbox" id="watchlistOnlyFilter">
+        ⭐ Watchlist only
+      </label>
       <button id="undoPickBtn">↩ Undo Last Pick</button>
       <button id="resetDraftBtn" class="danger-btn">Reset Draft</button>
     </div>

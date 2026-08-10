@@ -38,6 +38,7 @@ function buildSeedState() {
     pickLog: [],            // [{playerId, name, pos, status}] most recent last
     dataUpdatedAt: SEED_DATA_DATE,
     draftSettings: { numTeams: 10, yourSlot: 1, totalRounds: 15 },
+    watchlist: [],           // playerIds you're targeting
   };
 }
 
@@ -53,6 +54,7 @@ function load() {
       if (!parsed.pickLog) parsed.pickLog = [];
       if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
       if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
+      if (!parsed.watchlist) parsed.watchlist = [];
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }
@@ -83,6 +85,18 @@ function playerById(id) {
 
 function minePlayers() {
   return STATE.players.filter((p) => p.status === "mine");
+}
+
+function isWatched(id) {
+  return STATE.watchlist.includes(id);
+}
+
+function toggleWatch(id) {
+  const idx = STATE.watchlist.indexOf(id);
+  if (idx === -1) STATE.watchlist.push(id);
+  else STATE.watchlist.splice(idx, 1);
+  save();
+  renderAll();
 }
 
 /* ---------------- Tabs ---------------- */
@@ -133,12 +147,14 @@ function renderDraftTable() {
   const search = document.getElementById("draftSearch").value.trim().toLowerCase();
   const posFilter = document.getElementById("draftPosFilter").value;
   const statusFilter = document.getElementById("draftStatusFilter").value;
+  const watchlistOnly = document.getElementById("watchlistOnlyFilter").checked;
 
   let rows = STATE.players.filter((p) => {
     if (posFilter !== "ALL" && p.pos !== posFilter) return false;
     if (statusFilter === "AVAILABLE" && p.status !== "available") return false;
     if (statusFilter === "MINE" && p.status !== "mine") return false;
     if (statusFilter === "OTHER" && p.status !== "other") return false;
+    if (watchlistOnly && !isWatched(p.id)) return false;
     if (search && !(p.name.toLowerCase().includes(search) || p.team.toLowerCase().includes(search))) return false;
     return true;
   });
@@ -160,10 +176,12 @@ function renderDraftTable() {
     const tr = document.createElement("tr");
     if (p.status === "mine") tr.classList.add("drafted-mine");
     if (p.status === "other") tr.classList.add("drafted-other");
+    const watched = isWatched(p.id);
+    if (watched) tr.classList.add("watched-row");
     tr.innerHTML = `
       <td>${p.rank}</td>
       <td>${p.tier ?? ""}</td>
-      <td>${p.name}</td>
+      <td><button class="star-btn${watched ? " active" : ""}" title="${watched ? "Remove from" : "Add to"} watchlist">${watched ? "★" : "☆"}</button>${p.name}</td>
       <td><span class="badge badge-${p.pos}">${p.pos}</span></td>
       <td>${p.team}</td>
       <td>${p.bye}</td>
@@ -171,6 +189,7 @@ function renderDraftTable() {
       <td>${statusLabel(p)}</td>
       <td class="row-actions"></td>
     `;
+    tr.querySelector(".star-btn").addEventListener("click", () => toggleWatch(p.id));
     const actionsTd = tr.querySelector(".row-actions");
     actionsTd.appendChild(actionButtonsFor(p));
     tbody.appendChild(tr);
@@ -328,7 +347,9 @@ function renderBestAvailable() {
     }
     const top = avail[0];
     const topTierLeft = avail.filter((p) => p.tier <= TOP_TIER_CUTOFF).length;
+    if (isWatched(top.id)) card.classList.add("watched");
     card.innerHTML = `
+      ${isWatched(top.id) ? `<span class="best-card-star" title="On your watchlist">★</span>` : ""}
       <div class="best-card-pos">${pos} · Rank ${top.rank}</div>
       <div class="best-card-name">${top.name}</div>
       <div class="best-card-meta">${top.team} · Bye ${top.bye} · ${valueLabel(top)}</div>
@@ -356,6 +377,7 @@ function renderNeeds() {
 document.getElementById("draftSearch").addEventListener("input", renderDraftTable);
 document.getElementById("draftPosFilter").addEventListener("change", renderDraftTable);
 document.getElementById("draftStatusFilter").addEventListener("change", renderDraftTable);
+document.getElementById("watchlistOnlyFilter").addEventListener("change", renderDraftTable);
 document.getElementById("resetDraftBtn").addEventListener("click", () => {
   if (!confirm("Reset draft? This clears all draft picks (players stay in the pool) and your roster.")) return;
   STATE.players.forEach((p) => (p.status = "available"));
@@ -727,6 +749,7 @@ document.getElementById("restoreBtn").addEventListener("click", () => {
     if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
     if (!parsed.pickLog) parsed.pickLog = [];
     if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
+    if (!parsed.watchlist) parsed.watchlist = [];
     STATE = parsed;
     save();
     renderAll();
@@ -794,6 +817,29 @@ function renderAll() {
   document.getElementById("dataFreshness").textContent = freshText;
   document.getElementById("dataFreshnessDetail").textContent = formatDataDate(STATE.dataUpdatedAt);
 }
+
+/* ================= THEME TOGGLE ================= */
+const THEME_STORAGE_KEY = "ffhq_theme";
+
+function effectiveTheme() {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
+function renderThemeToggle() {
+  const theme = effectiveTheme();
+  document.getElementById("themeToggle").textContent = theme === "light" ? "🌙" : "☀️";
+}
+
+document.getElementById("themeToggle").addEventListener("click", () => {
+  const next = effectiveTheme() === "light" ? "dark" : "light";
+  localStorage.setItem(THEME_STORAGE_KEY, next);
+  document.documentElement.setAttribute("data-theme", next);
+  renderThemeToggle();
+});
+
+renderThemeToggle();
 
 initWeekSelect();
 renderAll();

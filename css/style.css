@@ -1,12 +1,48 @@
+/* Theme: dark is the default/bare palette (this app's native "press-box
+   scoreboard" identity). Light is available via OS preference or the
+   in-app toggle. See the media query and [data-theme] blocks below for
+   the light palette — every color role is redefined there in lockstep. */
 :root{
-  --bg:#0b0f17; --bg2:#111826; --card:#161f30; --card-hi:#1a2438; --border:#25304a;
+  --bg:#0b0f17; --bg2:#111826; --bg-deep:#0d1320; --card:#161f30; --card-hi:#1a2438; --border:#25304a;
   --border-soft:#1c2740; --text:#e8edf6; --muted:#8b98b3; --muted-2:#5c6b8a;
   --accent:#3fd67a; --accent-dim:#3fd67a1f; --link:#5b9dff;
   --warn:#f5b942; --danger:#ff6b6b; --pill:#1c273b;
-  --focus:#5b9dff;
+  --focus:#5b9dff; --hover-tint:rgba(255,255,255,0.025);
+  --ink-purple:#c9b8fd; --ink-green:#6ee6a0; --ink-blue:#93c5fd; --ink-amber:#ffca6b;
+  --ink-orange:#ffab6f; --ink-gray:#c7d0dd; --ink-pink:#ffa8d1; --ink-red:#ff9494;
   --font-display:"Oswald","Segoe UI Condensed",-apple-system,sans-serif;
   --font-body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f5f7fb; --bg2:#eaeef6; --bg-deep:#e3e8f4; --card:#ffffff; --card-hi:#f7f9fc; --border:#d7deeb;
+    --border-soft:#e3e8f2; --text:#161f2e; --muted:#5b6b85; --muted-2:#8a97ad;
+    --accent:#16a34a; --accent-dim:#16a34a1f; --link:#2563eb;
+    --warn:#b45309; --danger:#dc2626; --pill:#eef1f7;
+    --focus:#2563eb; --hover-tint:rgba(15,23,42,0.035);
+    --ink-purple:#7c3aed; --ink-green:#16a34a; --ink-blue:#2563eb; --ink-amber:#b45309;
+    --ink-orange:#c2410c; --ink-gray:#475569; --ink-pink:#db2777; --ink-red:#dc2626;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f5f7fb; --bg2:#eaeef6; --bg-deep:#e3e8f4; --card:#ffffff; --card-hi:#f7f9fc; --border:#d7deeb;
+  --border-soft:#e3e8f2; --text:#161f2e; --muted:#5b6b85; --muted-2:#8a97ad;
+  --accent:#16a34a; --accent-dim:#16a34a1f; --link:#2563eb;
+  --warn:#b45309; --danger:#dc2626; --pill:#eef1f7;
+  --focus:#2563eb; --hover-tint:rgba(15,23,42,0.035);
+  --ink-purple:#7c3aed; --ink-green:#16a34a; --ink-blue:#2563eb; --ink-amber:#b45309;
+  --ink-orange:#c2410c; --ink-gray:#475569; --ink-pink:#db2777; --ink-red:#dc2626;
+}
+:root[data-theme="dark"]{
+  --bg:#0b0f17; --bg2:#111826; --bg-deep:#0d1320; --card:#161f30; --card-hi:#1a2438; --border:#25304a;
+  --border-soft:#1c2740; --text:#e8edf6; --muted:#8b98b3; --muted-2:#5c6b8a;
+  --accent:#3fd67a; --accent-dim:#3fd67a1f; --link:#5b9dff;
+  --warn:#f5b942; --danger:#ff6b6b; --pill:#1c273b;
+  --focus:#5b9dff; --hover-tint:rgba(255,255,255,0.025);
+  --ink-purple:#c9b8fd; --ink-green:#6ee6a0; --ink-blue:#93c5fd; --ink-amber:#ffca6b;
+  --ink-orange:#ffab6f; --ink-gray:#c7d0dd; --ink-pink:#ffa8d1; --ink-red:#ff9494;
+}
+
 *{box-sizing:border-box;}
 ::selection{background:var(--accent-dim);color:var(--text);}
 html,body{margin:0;}
@@ -19,7 +55,7 @@ h3{font-family:var(--font-display);font-weight:600;letter-spacing:.01em;text-wra
 
 header.topbar{
   display:flex;align-items:center;gap:20px;padding:14px 22px;
-  background:linear-gradient(180deg,var(--bg2),#0d1320 90%);
+  background:linear-gradient(180deg,var(--bg2),var(--bg-deep) 90%);
   border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;flex-wrap:wrap;
 }
 .brand{
@@ -39,6 +75,12 @@ header.topbar{
 .week-select select{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-variant-numeric:tabular-nums;}
 .data-freshness{font-size:0.76rem;color:var(--muted-2);white-space:nowrap;}
 
+.theme-toggle{
+  background:var(--pill);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;padding:6px 10px;cursor:pointer;font-size:1rem;line-height:1;
+}
+.theme-toggle:hover{filter:brightness(1.15);}
+
 main{padding:22px;max-width:1200px;margin:0 auto;}
 .tab-panel{display:none;}
 .tab-panel.active{display:block;animation:fadein .18s ease;}
@@ -54,6 +96,9 @@ input[type=text]:focus, select:focus, textarea:focus{border-color:var(--link);}
 textarea{width:100%;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.82rem;resize:vertical;}
 #draftSearch{flex:1;min-width:180px;}
 
+.watchlist-toggle{display:flex;align-items:center;gap:6px;font-size:0.85rem;color:var(--muted);cursor:pointer;user-select:none;}
+.watchlist-toggle input{accent-color:var(--accent);}
+
 button{
   font-family:var(--font-body);
   background:var(--pill);color:var(--text);border:1px solid var(--border);
@@ -66,6 +111,13 @@ button:active{transform:translateY(1px);}
 .danger-btn{background:transparent;border-color:var(--danger);color:var(--danger);}
 .danger-btn:hover{background:var(--danger);color:#1a0808;}
 .btn-row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+
+.star-btn{
+  background:transparent;border:none;padding:0 6px 0 0;font-size:1rem;line-height:1;
+  cursor:pointer;color:var(--muted-2);vertical-align:middle;
+}
+.star-btn.active{color:var(--ink-amber);}
+.star-btn:hover{color:var(--ink-amber);filter:none;}
 
 .draft-summary{
   display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px;font-size:0.82rem;color:var(--muted);
@@ -82,25 +134,26 @@ thead th{
 }
 thead th:hover{color:var(--text);}
 tbody td{padding:9px 13px;border-top:1px solid var(--border-soft);vertical-align:middle;white-space:nowrap;font-variant-numeric:tabular-nums;}
-tbody tr:hover{background:rgba(255,255,255,0.025);}
+tbody tr:hover{background:var(--hover-tint);}
 tbody tr.drafted-mine{background:var(--accent-dim);}
 tbody tr.drafted-other{opacity:0.4;}
+tbody tr.watched-row td:first-child, tbody tr.watched-row td:nth-child(3){box-shadow:inset 2px 0 0 var(--ink-amber);}
 
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.7rem;font-weight:800;letter-spacing:.03em;}
-.badge-QB{background:#a78bfa26;color:#c9b8fd;}
-.badge-RB{background:#3fd67a26;color:#7eeaa8;}
-.badge-WR{background:#5b9dff26;color:#9cc2ff;}
-.badge-TE{background:#f5b94226;color:#ffd27a;}
-.badge-DST{background:#94a3b826;color:#c7d0dd;}
-.badge-K{background:#f472b626;color:#ffa8d1;}
+.badge-QB{background:#a78bfa26;color:var(--ink-purple);}
+.badge-RB{background:#3fd67a26;color:var(--ink-green);}
+.badge-WR{background:#5b9dff26;color:var(--ink-blue);}
+.badge-TE{background:#f5b94226;color:var(--ink-amber);}
+.badge-DST{background:#94a3b826;color:var(--ink-gray);}
+.badge-K{background:#f472b626;color:var(--ink-pink);}
 
 .status-pill{padding:3px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;}
-.status-Healthy{background:#3fd67a22;color:#6ee6a0;}
-.status-Questionable{background:#f5b94222;color:#ffca6b;}
-.status-Doubtful{background:#ff8b3c22;color:#ffab6f;}
-.status-Out{background:#ff6b6b22;color:#ff9494;}
-.status-IR{background:#94a3b833;color:#c7d0dd;}
-.status-Bye{background:#5b9dff22;color:#8fb8ff;}
+.status-Healthy{background:#3fd67a22;color:var(--ink-green);}
+.status-Questionable{background:#f5b94222;color:var(--ink-amber);}
+.status-Doubtful{background:#ff8b3c22;color:var(--ink-orange);}
+.status-Out{background:#ff6b6b22;color:var(--ink-red);}
+.status-IR{background:#94a3b833;color:var(--ink-gray);}
+.status-Bye{background:#5b9dff22;color:var(--ink-blue);}
 
 .roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:22px;}
 .slot-card{
@@ -152,8 +205,8 @@ h3{margin:26px 0 12px;font-size:1.05rem;}
 }
 #seasonOverviewTable td:first-child{background:var(--card);font-weight:600;font-family:var(--font-display);letter-spacing:.03em;}
 .avail-cell{font-variant-numeric:tabular-nums;font-weight:600;border-radius:6px;}
-.avail-danger{background:#ff6b6b26;color:#ff9494;}
-.avail-warn{background:#f5b94226;color:#ffca6b;}
+.avail-danger{background:#ff6b6b26;color:var(--ink-red);}
+.avail-warn{background:#f5b94226;color:var(--ink-amber);}
 .avail-ok{color:var(--muted);}
 .avail-current{box-shadow:0 0 0 1px var(--link) inset;}
 
@@ -178,8 +231,8 @@ h3{margin:26px 0 12px;font-size:1.05rem;}
 .learn-card .status-pill{font-size:0.78rem;}
 
 .value-pill{padding:2px 8px;border-radius:6px;font-size:0.78rem;font-weight:700;font-variant-numeric:tabular-nums;}
-.value-up{background:#3fd67a22;color:#6ee6a0;}
-.value-down{background:#ff6b6b22;color:#ff9494;}
+.value-up{background:#3fd67a22;color:var(--ink-green);}
+.value-down{background:#ff6b6b22;color:var(--ink-red);}
 .value-even, .value-na{color:var(--muted);font-size:0.82rem;}
 
 .section-label{font-family:var(--font-display);font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;font-weight:600;}
@@ -188,7 +241,7 @@ h3{margin:26px 0 12px;font-size:1.05rem;}
 .best-card{
   background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 13px;
   cursor:pointer;transition:border-color .15s,transform .1s,box-shadow .15s;
-  font-family:inherit;text-align:left;
+  font-family:inherit;text-align:left;position:relative;
 }
 .best-card:hover{border-color:var(--link);transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.3);}
 .best-card:disabled, .best-card.empty{opacity:.5;cursor:default;}
@@ -197,6 +250,8 @@ h3{margin:26px 0 12px;font-size:1.05rem;}
 .best-card-name{font-weight:700;font-size:.94rem;line-height:1.25;color:var(--text);}
 .best-card-meta{font-size:.76rem;color:var(--muted);margin-top:3px;}
 .best-card-scarcity{font-size:.72rem;margin-top:6px;color:var(--warn);font-weight:600;}
+.best-card-star{position:absolute;top:8px;right:10px;font-size:.85rem;color:var(--muted-2);}
+.best-card.watched .best-card-star{color:var(--ink-amber);}
 
 .needs-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
 .need-chip{

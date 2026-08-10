@@ -17,11 +17,15 @@ function slugify(name) {
 }
 
 function buildSeedState() {
-  const players = SEED_PLAYERS.map(([name, pos, team, bye, tier], idx) => ({
+  const players = SEED_PLAYERS.map(([name, pos, team, bye, tier, adpDelta], idx) => ({
     id: slugify(name) + "-" + pos.toLowerCase(),
     name, pos, team, bye,
     rank: idx + 1,
     tier,
+    // FantasyPros "ECR vs. ADP": positive = experts rate them above where they're
+    // actually being drafted (value); negative = market is drafting them ahead
+    // of expert consensus (reach). null/undefined = no ADP data available.
+    adpDelta: adpDelta === undefined ? null : adpDelta,
     status: "available", // available | mine | other
     injury: "Healthy",
   }));
@@ -130,6 +134,8 @@ function renderDraftTable() {
   rows.sort((a, b) => {
     const k = draftSort.key;
     let av = a[k], bv = b[k];
+    if (av === null || av === undefined) av = -Infinity;
+    if (bv === null || bv === undefined) bv = -Infinity;
     if (typeof av === "string") { av = av.toLowerCase(); bv = bv.toLowerCase(); }
     if (av < bv) return -1 * draftSort.dir;
     if (av > bv) return 1 * draftSort.dir;
@@ -149,6 +155,7 @@ function renderDraftTable() {
       <td><span class="badge badge-${p.pos}">${p.pos}</span></td>
       <td>${p.team}</td>
       <td>${p.bye}</td>
+      <td>${valueLabel(p)}</td>
       <td>${statusLabel(p)}</td>
       <td class="row-actions"></td>
     `;
@@ -162,6 +169,16 @@ function statusLabel(p) {
   if (p.status === "mine") return `<span class="status-pill status-Healthy">My Team</span>`;
   if (p.status === "other") return `<span class="status-pill status-Out">Drafted</span>`;
   return `<span class="status-pill status-Questionable">Available</span>`;
+}
+
+// FantasyPros "ECR vs. ADP": positive = value (ranked above where drafted),
+// negative = reach (being drafted ahead of expert consensus).
+function valueLabel(p) {
+  if (p.adpDelta === null || p.adpDelta === undefined) return `<span class="value-na">—</span>`;
+  if (p.adpDelta === 0) return `<span class="value-even">even</span>`;
+  const cls = p.adpDelta > 0 ? "value-up" : "value-down";
+  const sign = p.adpDelta > 0 ? "+" : "";
+  return `<span class="value-pill ${cls}">${sign}${p.adpDelta}</span>`;
 }
 
 function actionButtonsFor(p) {
@@ -244,7 +261,7 @@ function renderBestAvailable() {
     card.innerHTML = `
       <div class="best-card-pos">${pos} · Rank ${top.rank}</div>
       <div class="best-card-name">${top.name}</div>
-      <div class="best-card-meta">${top.team} · Bye ${top.bye}</div>
+      <div class="best-card-meta">${top.team} · Bye ${top.bye} · ${valueLabel(top)}</div>
       ${topTierLeft ? `<div class="best-card-scarcity">${topTierLeft} top-tier left</div>` : ""}
     `;
     card.addEventListener("click", () => setStatus(top.id, "mine"));
@@ -508,6 +525,9 @@ function importCsv(text) {
       bye: parseInt(r.bye, 10) || 0,
       rank: parseInt(r.rank, 10) || i + 1,
       tier: parseInt(r.tier, 10) || Math.ceil((parseInt(r.rank, 10) || i + 1) / 12),
+      adpDelta: r.adpdelta !== undefined && r.adpdelta !== "" && !Number.isNaN(parseInt(r.adpdelta, 10))
+        ? parseInt(r.adpdelta, 10)
+        : null,
       status: prev ? prev.status : "available",
       injury: prev ? prev.injury : "Healthy",
     };
@@ -541,11 +561,11 @@ document.getElementById("importFile").addEventListener("change", (e) => {
 });
 
 function toCsv() {
-  const header = "name,pos,team,bye,rank,tier,status,injury";
+  const header = "name,pos,team,bye,rank,tier,adpDelta,status,injury";
   const lines = STATE.players
     .slice()
     .sort((a, b) => a.rank - b.rank)
-    .map((p) => [p.name, p.pos, p.team, p.bye, p.rank, p.tier, p.status, p.injury].join(","));
+    .map((p) => [p.name, p.pos, p.team, p.bye, p.rank, p.tier, p.adpDelta ?? "", p.status, p.injury].join(","));
   return [header, ...lines].join("\n");
 }
 

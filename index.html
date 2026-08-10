@@ -63,6 +63,7 @@
             <th data-sort="pos">Pos</th>
             <th data-sort="team">Team</th>
             <th data-sort="bye">Bye</th>
+            <th data-sort="adpDelta" title="FantasyPros ECR vs. ADP: positive = value, negative = reach">Value</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -107,7 +108,7 @@
     <div class="data-grid">
       <div class="data-card">
         <h3>Import Players (CSV)</h3>
-        <p class="hint">Header row required: <code>name,pos,team,bye,rank,tier</code>. This <strong>replaces</strong> the full player pool (draft status/injury status is preserved for players with matching names).</p>
+        <p class="hint">Header row required: <code>name,pos,team,bye,rank,tier</code> (optionally add <code>adpDelta</code> — FantasyPros' "ECR vs. ADP" value/reach figure). This <strong>replaces</strong> the full player pool (draft status/injury status is preserved for players with matching names).</p>
         <textarea id="importText" rows="8" placeholder="name,pos,team,bye,rank,tier"></textarea>
         <div class="btn-row">
           <input type="file" id="importFile" accept=".csv,text/csv">

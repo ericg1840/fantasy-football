@@ -97,6 +97,9 @@
   <!-- MY TEAM -->
   <section id="tab-team" class="tab-panel">
     <p class="hint">Assign drafted players to starting slots. Anyone not in a slot sits on the bench automatically.</p>
+    <div class="btn-row">
+      <button id="resetTeamBtn" class="danger-btn">Clear Lineup</button>
+    </div>
     <div class="roster-grid" id="rosterGrid"></div>
     <h3>Bench</h3>
     <div class="table-wrap">
@@ -123,6 +126,7 @@
     <p class="hint">Set each player's status for the selected week. Bye-week players are flagged automatically. Click <strong>Auto-Optimize</strong> to swap out bye/injured/questionable starters for your best healthy bench option.</p>
     <div class="panel-controls">
       <button id="autoOptimizeBtn" class="primary-btn">⚡ Auto-Optimize Lineup</button>
+      <button id="resetWeekLineupBtn" class="danger-btn">Reset Week to Season Default</button>
       <span id="lineupAlerts" class="alerts"></span>
     </div>
     <div class="roster-grid" id="lineupGrid"></div>

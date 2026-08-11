@@ -304,6 +304,49 @@ h3{margin:26px 0 12px;font-size:1.08rem;}
 
 select.injury-select{min-width:135px;}
 
+.trade-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.trade-side{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+}
+.trade-side h3{margin-top:0;}
+.trade-side select{width:100%;margin-bottom:12px;}
+.trade-player-list{display:flex;flex-direction:column;gap:8px;min-height:8px;}
+.trade-player-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--bg2);border:1px solid var(--border-soft);border-radius:var(--radius-md);padding:8px 12px;
+}
+.trade-player-row .name{font-weight:700;font-size:.9rem;}
+.trade-player-row .meta{color:var(--muted);font-size:.78rem;margin-top:2px;}
+.trade-player-row .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.82rem;white-space:nowrap;}
+.trade-player-row .remove-btn{
+  background:transparent;border:none;color:var(--muted-2);font-size:1rem;line-height:1;padding:2px 4px;cursor:pointer;
+}
+.trade-player-row .remove-btn:hover{color:var(--danger);filter:none;}
+.trade-subtotal{margin-top:12px;font-weight:700;font-family:var(--font-display);font-size:.95rem;color:var(--text);}
+.trade-verdict-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  font-size:.95rem;line-height:1.6;margin-bottom:16px;
+}
+.trade-verdict-card b{color:var(--text);}
+.trade-verdict-favors-a, .trade-verdict-favors-b{color:var(--accent);font-weight:700;}
+.trade-verdict-even{color:var(--link);font-weight:700;}
+
+#compareTable th:first-child, #compareTable td:first-child{
+  text-align:left;position:sticky;left:0;background:var(--bg2);z-index:1;
+  font-family:var(--font-display);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);font-weight:600;
+}
+#compareTable td:first-child{background:var(--card-hi);}
+#compareTable th, #compareTable td{text-align:center;padding:10px 16px;white-space:nowrap;}
+#compareTable .compare-best{color:var(--ink-green);font-weight:800;}
+#compareTable .compare-remove{background:transparent;border:none;color:var(--muted-2);font-size:1rem;cursor:pointer;padding:0;}
+#compareTable .compare-remove:hover{color:var(--danger);filter:none;}
+
+@media (max-width:640px){
+  .trade-grid{grid-template-columns:1fr;}
+}
+
 .toast{
   position:fixed;bottom:22px;right:22px;background:var(--accent);color:#04150c;
   padding:12px 20px;border-radius:var(--radius-pill);box-shadow:0 8px 28px rgba(0,0,0,0.4);

@@ -665,6 +665,183 @@ document.getElementById("resetWeekLineupBtn").addEventListener("click", () => {
   toast(`Week ${week} reset to season default.`);
 });
 
+/* ================= TRADE ANALYZER ================= */
+// Simple linear rank-based estimate: the #1 overall player is worth the most,
+// value tapers to 0 by the back of the ranked pool. This is only meant to
+// sanity-check a trade at a glance, not to replace real judgment about need,
+// bye weeks, etc. — the hint text on the tab says as much.
+function tradeValue(p) {
+  return Math.max(0, 260 - p.rank);
+}
+
+let tradeSideA = [];
+let tradeSideB = [];
+
+function tradeablePlayers() {
+  return STATE.players
+    .filter((p) => p.status === "mine" || p.status === "other")
+    .sort((a, b) => a.rank - b.rank);
+}
+
+function renderTradeSelect(selectId, excludeIds) {
+  const sel = document.getElementById(selectId);
+  const prevValue = sel.value;
+  sel.innerHTML = '<option value="">+ Add player…</option>' +
+    tradeablePlayers()
+      .filter((p) => !excludeIds.has(p.id))
+      .map((p) => `<option value="${p.id}">${p.name} (${p.pos} · ${p.team}) — Rank ${p.rank}${p.status === "mine" ? " · Yours" : ""}</option>`)
+      .join("");
+  sel.value = "";
+}
+
+function renderTradeList(listId, subtotalId, side) {
+  const list = document.getElementById(listId);
+  list.innerHTML = "";
+  side.forEach((p) => {
+    const row = document.createElement("div");
+    row.className = "trade-player-row";
+    row.innerHTML = `
+      <div>
+        <div class="name">${p.name}</div>
+        <div class="meta">${p.pos} · ${p.team} · Rank ${p.rank}${p.status === "mine" ? " · Yours" : ""}</div>
+      </div>
+      <div class="val">${tradeValue(p)} pts</div>
+      <button class="remove-btn" aria-label="Remove ${p.name}">✕</button>`;
+    row.querySelector(".remove-btn").addEventListener("click", () => {
+      if (side === tradeSideA) tradeSideA = tradeSideA.filter((x) => x.id !== p.id);
+      else tradeSideB = tradeSideB.filter((x) => x.id !== p.id);
+      renderTradeTab();
+    });
+    list.appendChild(row);
+  });
+  const total = side.reduce((sum, p) => sum + tradeValue(p), 0);
+  document.getElementById(subtotalId).textContent = `Total value: ${total}`;
+  return total;
+}
+
+function renderTradeTab() {
+  const usedIds = new Set([...tradeSideA, ...tradeSideB].map((p) => p.id));
+  renderTradeSelect("tradeAddA", usedIds);
+  renderTradeSelect("tradeAddB", usedIds);
+
+  const totalA = renderTradeList("tradeListA", "tradeSubtotalA", tradeSideA);
+  const totalB = renderTradeList("tradeListB", "tradeSubtotalB", tradeSideB);
+
+  const verdict = document.getElementById("tradeVerdict");
+  if (!tradeSideA.length && !tradeSideB.length) {
+    verdict.textContent = "Add players to both sides to see a verdict.";
+    return;
+  }
+  const diff = Math.abs(totalA - totalB);
+  const favored = totalA === totalB ? null : totalA > totalB ? "A" : "B";
+  if (diff <= 15) {
+    verdict.innerHTML = `<span class="trade-verdict-even">Fairly even trade</span> — value gap is only ${diff} points.`;
+  } else {
+    const favoredLabel = favored === "A" ? "Side B" : "Side A";
+    verdict.innerHTML = `<span class="trade-verdict-favors-${favored === "A" ? "b" : "a"}">${favoredLabel} comes out ahead</span> by about ${diff} value points. Weigh that against roster needs before pulling the trigger.`;
+  }
+}
+
+document.getElementById("tradeAddA").addEventListener("change", (e) => {
+  const p = playerById(e.target.value);
+  if (p) tradeSideA.push(p);
+  renderTradeTab();
+});
+document.getElementById("tradeAddB").addEventListener("change", (e) => {
+  const p = playerById(e.target.value);
+  if (p) tradeSideB.push(p);
+  renderTradeTab();
+});
+document.getElementById("tradeResetBtn").addEventListener("click", () => {
+  tradeSideA = [];
+  tradeSideB = [];
+  renderTradeTab();
+});
+
+/* ================= PLAYER COMPARISON ================= */
+let comparePlayers = [];
+
+const COMPARE_ROWS = [
+  { label: "Position", get: (p) => p.pos },
+  { label: "Team", get: (p) => p.team },
+  { label: "Bye", get: (p) => p.bye },
+  { label: "Rank", get: (p) => p.rank, lowerIsBetter: true },
+  { label: "Tier", get: (p) => p.tier, lowerIsBetter: true },
+  { label: "Value (ADP)", get: (p) => (p.adpDelta === null || p.adpDelta === undefined ? "—" : p.adpDelta === 0 ? "even" : (p.adpDelta > 0 ? "+" : "") + p.adpDelta), higherIsBetter: true, raw: (p) => p.adpDelta },
+  { label: "Status", get: (p) => p.status === "mine" ? "Yours" : p.status === "other" ? "Drafted (other)" : "Available" },
+  { label: "Injury", get: (p) => p.injury },
+];
+
+function renderCompareSelect() {
+  const sel = document.getElementById("compareAdd");
+  const usedIds = new Set(comparePlayers.map((p) => p.id));
+  const disabled = comparePlayers.length >= 4;
+  sel.innerHTML = '<option value="">+ Add player to compare…</option>' +
+    STATE.players
+      .filter((p) => !usedIds.has(p.id))
+      .sort((a, b) => a.rank - b.rank)
+      .map((p) => `<option value="${p.id}">${p.name} (${p.pos} · ${p.team}) — Rank ${p.rank}</option>`)
+      .join("");
+  sel.value = "";
+  sel.disabled = disabled;
+}
+
+function renderCompareTab() {
+  renderCompareSelect();
+  const head = document.getElementById("compareHead");
+  const body = document.getElementById("compareBody");
+
+  if (!comparePlayers.length) {
+    head.innerHTML = "<th>Player</th>";
+    body.innerHTML = `<tr><td class="hint" style="padding:16px;">Add players above to compare them side by side.</td></tr>`;
+    return;
+  }
+
+  head.innerHTML = "<th>Player</th>" + comparePlayers.map((p) => `
+    <th>${p.name}<button class="compare-remove" data-id="${p.id}" aria-label="Remove ${p.name}" style="margin-left:8px;">✕</button></th>
+  `).join("");
+
+  body.innerHTML = "";
+  COMPARE_ROWS.forEach((row) => {
+    const tr = document.createElement("tr");
+    let bestVal = null;
+    if (row.lowerIsBetter) bestVal = Math.min(...comparePlayers.map((p) => row.get(p)));
+    if (row.higherIsBetter) {
+      const vals = comparePlayers.map((p) => row.raw(p)).filter((v) => v !== null && v !== undefined);
+      bestVal = vals.length ? Math.max(...vals) : null;
+    }
+    let cells = `<td>${row.label}</td>`;
+    comparePlayers.forEach((p) => {
+      const val = row.get(p);
+      const isBest = row.lowerIsBetter
+        ? val === bestVal
+        : row.higherIsBetter
+        ? row.raw(p) === bestVal && bestVal !== null
+        : false;
+      cells += `<td${isBest ? ' class="compare-best"' : ""}>${val}</td>`;
+    });
+    tr.innerHTML = cells;
+    body.appendChild(tr);
+  });
+
+  head.querySelectorAll(".compare-remove").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      comparePlayers = comparePlayers.filter((p) => p.id !== btn.dataset.id);
+      renderCompareTab();
+    });
+  });
+}
+
+document.getElementById("compareAdd").addEventListener("change", (e) => {
+  const p = playerById(e.target.value);
+  if (p && comparePlayers.length < 4) comparePlayers.push(p);
+  renderCompareTab();
+});
+document.getElementById("compareResetBtn").addEventListener("click", () => {
+  comparePlayers = [];
+  renderCompareTab();
+});
+
 /* ================= IMPORT / EXPORT ================= */
 function parseCsv(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
@@ -826,6 +1003,8 @@ function renderAll() {
   renderTeamTab();
   renderSeasonOverview();
   renderLineupTab();
+  renderTradeTab();
+  renderCompareTab();
   document.getElementById("slotsInput").value = STATE.slots.join(",");
   document.getElementById("draftNumTeams").value = STATE.draftSettings.numTeams;
   document.getElementById("draftYourSlot").value = STATE.draftSettings.yourSlot;

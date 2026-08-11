@@ -25,6 +25,8 @@
     <button class="tab-btn active" data-tab="draft">Draft Board</button>
     <button class="tab-btn" data-tab="team">My Team</button>
     <button class="tab-btn" data-tab="lineup">Weekly Lineup</button>
+    <button class="tab-btn" data-tab="trade">Trade Analyzer</button>
+    <button class="tab-btn" data-tab="compare">Compare</button>
     <button class="tab-btn" data-tab="data">Import / Export</button>
     <button class="tab-btn" data-tab="learn">Learn</button>
   </nav>
@@ -135,6 +137,44 @@
       <table id="lineupBenchTable">
         <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury Status</th><th>Actions</th></tr></thead>
         <tbody id="lineupBenchTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TRADE ANALYZER -->
+  <section id="tab-trade" class="tab-panel">
+    <p class="hint">Add the players each side would send. Value is a simple rank-based estimate (higher rank = more valuable) meant to sanity-check a trade, not a hard rule — always weigh your own team's needs too.</p>
+    <div class="trade-grid">
+      <div class="trade-side" id="tradeSideA">
+        <h3>Side A sends</h3>
+        <select id="tradeAddA"><option value="">+ Add player…</option></select>
+        <div class="trade-player-list" id="tradeListA"></div>
+        <div class="trade-subtotal" id="tradeSubtotalA">Total value: 0</div>
+      </div>
+      <div class="trade-side" id="tradeSideB">
+        <h3>Side B sends</h3>
+        <select id="tradeAddB"><option value="">+ Add player…</option></select>
+        <div class="trade-player-list" id="tradeListB"></div>
+        <div class="trade-subtotal" id="tradeSubtotalB">Total value: 0</div>
+      </div>
+    </div>
+    <div class="trade-verdict-card" id="tradeVerdict">Add players to both sides to see a verdict.</div>
+    <div class="btn-row">
+      <button id="tradeResetBtn" class="danger-btn">Clear Trade</button>
+    </div>
+  </section>
+
+  <!-- PLAYER COMPARISON -->
+  <section id="tab-compare" class="tab-panel">
+    <p class="hint">Compare up to 4 players side by side. Add anyone from the player pool, drafted or not.</p>
+    <div class="panel-controls">
+      <select id="compareAdd"><option value="">+ Add player to compare…</option></select>
+      <button id="compareResetBtn" class="danger-btn">Clear</button>
+    </div>
+    <div class="table-wrap">
+      <table id="compareTable">
+        <thead><tr id="compareHead"></tr></thead>
+        <tbody id="compareBody"></tbody>
       </table>
     </div>
   </section>

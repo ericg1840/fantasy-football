@@ -6,6 +6,46 @@ const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
 const INJURY_LEVELS = ["Healthy", "Questionable", "Doubtful", "Out", "IR"];
 const SEVERITY = { Healthy: 0, Questionable: 1, Doubtful: 2, Out: 3, IR: 3 };
 const BOARD_POSITIONS = ["QB", "RB", "WR", "TE", "DST", "K"];
+const NFL_TEAMS = [
+  "ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB",
+  "HOU", "IND", "JAX", "KC", "LV", "LAR", "LAC", "MIA", "MIN", "NE", "NO", "NYG",
+  "NYJ", "PHI", "PIT", "SF", "SEA", "TB", "TEN", "WSH",
+];
+// Full-season opponent schedule, each team's 18 weeks: "@OPP" | "OPP" | "BYE".
+const DEFAULT_NFL_SCHEDULE = {
+  ARI: ["@LAC", "SEA", "@SF", "@NYG", "DET", "@LAR", "DEN", "@DAL", "@SEA", "LAR", "@KC", "WSH", "PHI", "BYE", "NYJ", "@NO", "LV", "SF"],
+  ATL: ["@PIT", "CAR", "@GB", "@NO", "BAL", "CHI", "SF", "@TB", "CIN", "KC", "BYE", "@MIN", "DET", "@CLE", "@WSH", "TB", "NO", "@CAR"],
+  BAL: ["@IND", "NO", "@DAL", "TEN", "@ATL", "@CLE", "CIN", "@BUF", "JAX", "LAC", "@CAR", "@HOU", "BYE", "TB", "@PIT", "CLE", "@CIN", "PIT"],
+  BUF: ["@HOU", "DET", "LAC", "NE", "@LAR", "@LV", "BYE", "BAL", "@MIN", "@NYJ", "MIA", "KC", "@NE", "@GB", "CHI", "@DEN", "@MIA", "NYJ"],
+  CAR: ["CHI", "@ATL", "@CLE", "DET", "BYE", "@PHI", "TB", "@GB", "DEN", "@NO", "BAL", "@TB", "@MIN", "NO", "CIN", "@PIT", "SEA", "ATL"],
+  CHI: ["@CAR", "MIN", "PHI", "NYJ", "@GB", "@ATL", "NE", "@SEA", "TB", "BYE", "NO", "@DET", "JAX", "@MIA", "@BUF", "GB", "DET", "@MIN"],
+  CIN: ["TB", "@HOU", "@PIT", "JAX", "@MIA", "BYE", "@BAL", "TEN", "@ATL", "PIT", "@WSH", "NO", "@CLE", "KC", "@CAR", "@IND", "BAL", "CLE"],
+  CLE: ["@JAX", "@TB", "CAR", "PIT", "@NYJ", "BAL", "@TEN", "@PIT", "@NO", "HOU", "BYE", "LV", "CIN", "ATL", "@NYG", "@BAL", "IND", "@CIN"],
+  DAL: ["@NYG", "WSH", "BAL", "@HOU", "TB", "@GB", "@PHI", "ARI", "@IND", "SF", "TEN", "PHI", "@SEA", "BYE", "@LAR", "JAX", "NYG", "@WSH"],
+  DEN: ["@KC", "JAX", "LAR", "@SF", "@LAC", "SEA", "@ARI", "KC", "@CAR", "BYE", "LV", "@PIT", "MIA", "@NYJ", "@LV", "BUF", "@NE", "LAC"],
+  DET: ["NO", "@BUF", "NYJ", "@CAR", "@ARI", "BYE", "GB", "MIN", "@MIA", "NE", "TB", "CHI", "@ATL", "TEN", "@MIN", "NYG", "@CHI", "@GB"],
+  GB: ["@MIN", "@NYJ", "ATL", "@TB", "CHI", "DAL", "@DET", "CAR", "@NE", "MIN", "BYE", "@LAR", "@NO", "BUF", "MIA", "@CHI", "HOU", "DET"],
+  HOU: ["BUF", "CIN", "@IND", "DAL", "@TEN", "@JAX", "NYG", "BYE", "@LAC", "@CLE", "IND", "BAL", "@PIT", "@WSH", "JAX", "@PHI", "@GB", "TEN"],
+  IND: ["BAL", "@KC", "HOU", "@WSH", "@PIT", "TEN", "@MIN", "@JAX", "DAL", "MIA", "@HOU", "NYG", "BYE", "@PHI", "@TEN", "CIN", "@CLE", "JAX"],
+  JAX: ["CLE", "@DEN", "NE", "@CIN", "PHI", "HOU", "BYE", "IND", "@BAL", "@TEN", "@NYG", "TEN", "@CHI", "PIT", "@HOU", "@DAL", "WSH", "@IND"],
+  KC: ["DEN", "IND", "@MIA", "@LV", "BYE", "LAC", "@SEA", "@DEN", "NYJ", "@ATL", "ARI", "@BUF", "@LAR", "@CIN", "NE", "SF", "@LAC", "LV"],
+  LV: ["MIA", "@LAC", "@NO", "KC", "@NE", "BUF", "LAR", "@NYJ", "@SF", "SEA", "@DEN", "@CLE", "BYE", "LAC", "DEN", "TEN", "@ARI", "@KC"],
+  LAR: ["SF", "NYG", "@DEN", "@PHI", "BUF", "ARI", "@LV", "LAC", "@WSH", "@ARI", "BYE", "GB", "KC", "@SF", "DAL", "@SEA", "@TB", "SEA"],
+  LAC: ["ARI", "LV", "@BUF", "@SEA", "DEN", "@KC", "BYE", "@LAR", "HOU", "@BAL", "NYJ", "NE", "@TB", "@LV", "SF", "@MIA", "KC", "@DEN"],
+  MIA: ["@LV", "@SF", "KC", "@MIN", "CIN", "BYE", "@NYJ", "NE", "DET", "@IND", "@BUF", "NYJ", "@DEN", "CHI", "@GB", "LAC", "BUF", "@NE"],
+  MIN: ["GB", "@CHI", "@TB", "MIA", "@NO", "BYE", "IND", "@DET", "BUF", "@GB", "@SF", "ATL", "CAR", "@NE", "DET", "WSH", "@NYJ", "CHI"],
+  NE: ["@SEA", "PIT", "@JAX", "@BUF", "LV", "NYJ", "@CHI", "@MIA", "GB", "@DET", "BYE", "@LAC", "BUF", "MIN", "@KC", "@NYJ", "DEN", "MIA"],
+  NO: ["@DET", "@BAL", "LV", "ATL", "MIN", "@NYG", "PIT", "BYE", "CLE", "CAR", "@CHI", "@CIN", "GB", "@CAR", "@TB", "ARI", "@ATL", "TB"],
+  NYG: ["DAL", "@LAR", "TEN", "ARI", "@WSH", "NO", "@HOU", "BYE", "@PHI", "WSH", "JAX", "@IND", "SF", "@SEA", "CLE", "@DET", "@DAL", "PHI"],
+  NYJ: ["@TEN", "GB", "@DET", "@CHI", "CLE", "@NE", "MIA", "LV", "@KC", "BUF", "@LAC", "@MIA", "BYE", "DEN", "@ARI", "NE", "MIN", "@BUF"],
+  PHI: ["WSH", "@TEN", "@CHI", "LAR", "@JAX", "CAR", "DAL", "@WSH", "NYG", "BYE", "PIT", "@DAL", "@ARI", "IND", "SEA", "HOU", "@SF", "@NYG"],
+  PIT: ["ATL", "@NE", "CIN", "@CLE", "IND", "@TB", "@NO", "CLE", "BYE", "@CIN", "@PHI", "DEN", "HOU", "@JAX", "BAL", "CAR", "@TEN", "@BAL"],
+  SF: ["@LAR", "MIA", "ARI", "DEN", "@SEA", "WSH", "@ATL", "BYE", "LV", "@DAL", "MIN", "SEA", "@NYG", "LAR", "@LAC", "@KC", "PHI", "@ARI"],
+  SEA: ["NE", "@ARI", "@WSH", "LAC", "SF", "@DEN", "KC", "CHI", "ARI", "@LV", "BYE", "@SF", "DAL", "NYG", "@PHI", "LAR", "@CAR", "@LAR"],
+  TB: ["@CIN", "CLE", "MIN", "GB", "@DAL", "PIT", "@CAR", "ATL", "@CHI", "BYE", "@DET", "CAR", "LAC", "@BAL", "NO", "@ATL", "LAR", "@NO"],
+  TEN: ["NYJ", "PHI", "@NYG", "@BAL", "HOU", "@IND", "CLE", "@CIN", "BYE", "JAX", "@DAL", "@JAX", "WSH", "@DET", "IND", "@LV", "PIT", "@HOU"],
+  WSH: ["@PHI", "@DAL", "SEA", "IND", "NYG", "@SF", "BYE", "PHI", "LAR", "@NYG", "CIN", "@ARI", "@TEN", "HOU", "ATL", "@MIN", "@JAX", "DAL"],
+};
 // Typical roster-construction targets (starters + realistic bench depth),
 // used only as a draft-day guidance heuristic, independent of league slot config.
 const RECOMMENDED_COUNTS = { QB: 2, RB: 5, WR: 6, TE: 2, DST: 1, K: 1 };
@@ -127,6 +167,16 @@ function applyDefaultLeagueTeams(state) {
   });
 }
 
+// Fills in any team row not already set — never overwrites a row you've
+// corrected or pasted in yourself.
+function applyDefaultNflSchedule(state) {
+  NFL_TEAMS.forEach((team) => {
+    if (!state.nflSchedule[team] && DEFAULT_NFL_SCHEDULE[team]) {
+      state.nflSchedule[team] = DEFAULT_NFL_SCHEDULE[team].slice();
+    }
+  });
+}
+
 function buildSeedState() {
   const players = SEED_PLAYERS.map(([name, pos, team, bye, tier, adpDelta], idx) => ({
     id: slugify(name) + "-" + pos.toLowerCase(),
@@ -153,10 +203,12 @@ function buildSeedState() {
     watchlist: [],           // playerIds you're targeting
     opponentTeams: [],       // [{id, name, playerIds}] league teams you've added
     schedule: {},            // week -> opponentTeam id, your season matchup schedule
+    nflSchedule: {},         // NFL team abbrev -> [18 entries], "@OPP" | "OPP" | "BYE"
     liveScoring: { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) },
     _defaultLeagueTeamsApplied: true,
   };
   applyDefaultLeagueTeams(state);
+  applyDefaultNflSchedule(state);
   return state;
 }
 
@@ -175,6 +227,7 @@ function load() {
       if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
       if (!parsed.watchlist) parsed.watchlist = [];
       if (!parsed.opponentTeams) parsed.opponentTeams = [];
+      if (!parsed.nflSchedule) parsed.nflSchedule = {};
       if (!parsed.schedule) parsed.schedule = parsed.currentOpponentId ? { [parsed.currentWeek || 1]: parsed.currentOpponentId } : {};
       delete parsed.currentOpponentId;
       if (!parsed.liveScoring) parsed.liveScoring = { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) };
@@ -185,6 +238,10 @@ function load() {
         applyDefaultLeagueTeams(parsed);
         parsed._defaultLeagueTeamsApplied = true;
       }
+      // Fills in any NFL team's schedule row that isn't already set (e.g. one
+      // you haven't corrected yet) — safe to run every load since it never
+      // overwrites a row that's already present.
+      applyDefaultNflSchedule(parsed);
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }
@@ -1110,6 +1167,64 @@ function renderMatchup() {
   `;
 }
 
+/* ================= NFL SCHEDULE ================= */
+function renderNflScheduleTab() {
+  const head = document.getElementById("nflScheduleHead");
+  const tbody = document.getElementById("nflScheduleTbody");
+  const week = STATE.currentWeek;
+
+  head.innerHTML = "<th>Team</th>" +
+    Array.from({ length: SEASON_WEEKS }, (_, i) => {
+      const w = i + 1;
+      return `<th class="${w === week ? "current-week-col" : ""}">${w}</th>`;
+    }).join("");
+
+  tbody.innerHTML = "";
+  NFL_TEAMS.forEach((team) => {
+    const row = STATE.nflSchedule[team];
+    const tr = document.createElement("tr");
+    let cells = `<td>${team}</td>`;
+    for (let i = 0; i < SEASON_WEEKS; i++) {
+      const val = row ? row[i] : null;
+      const isCurrent = i + 1 === week;
+      const isBye = val === "BYE";
+      const isAway = typeof val === "string" && val.startsWith("@");
+      const cls = [isCurrent ? "current-week-col" : "", isBye ? "bye-cell" : "", isAway ? "away" : ""].filter(Boolean).join(" ");
+      cells += `<td class="${cls}">${val || "—"}</td>`;
+    }
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("nflScheduleImportBtn").addEventListener("click", () => {
+  const textarea = document.getElementById("nflScheduleImportInput");
+  const lines = textarea.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) { toast("Paste at least one row."); return; }
+
+  let updated = 0;
+  const problems = [];
+  lines.forEach((line) => {
+    // Accepts comma-, tab-, or space-separated rows (e.g. a paste from a spreadsheet).
+    const parts = line.split(/[\s,]+/).map((s) => s.trim()).filter((s) => s !== "");
+    const team = (parts[0] || "").toUpperCase();
+    if (team === "TEAM") return; // header row
+    const weeks = parts.slice(1);
+    if (!NFL_TEAMS.includes(team)) { problems.push(`"${parts[0]}" isn't a recognized team code`); return; }
+    if (weeks.length !== SEASON_WEEKS) { problems.push(`${team}: expected ${SEASON_WEEKS} weeks, got ${weeks.length}`); return; }
+    STATE.nflSchedule[team] = weeks.map((w) => w.toUpperCase());
+    updated++;
+  });
+
+  textarea.value = "";
+  save();
+  renderNflScheduleTab();
+  let msg = `${updated} team row${updated === 1 ? "" : "s"} updated.`;
+  if (problems.length) msg += ` ${problems.length} skipped — see console.`;
+  toast(msg);
+  if (problems.length) console.warn("NFL schedule import problems:", problems);
+});
+
 function makeTeamId() {
   return "opp-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
@@ -1783,6 +1898,7 @@ function renderAll() {
   renderTeamTab();
   renderSeasonOverview();
   renderLineupTab();
+  renderNflScheduleTab();
   renderTradeTab();
   renderCompareTab();
   document.getElementById("teamNameInput").value = STATE.teamName;

@@ -1105,6 +1105,59 @@ document.getElementById("opponentAddPlayer").addEventListener("change", (e) => {
   renderOpponentTracker();
 });
 
+// Bulk-adds a whole roster to this week's opponent team from pasted lines of
+// "Name, Pos, Team, Bye". Matches existing players by name (ignoring
+// punctuation/case); anything unmatched is added to the player pool as a
+// new "other" (drafted-elsewhere) player so it behaves like any other
+// tracked player (bye/injury flags, live scoring, etc).
+document.getElementById("bulkAddRosterBtn").addEventListener("click", () => {
+  const team = currentOpponentTeam();
+  if (!team) { toast("Select or add this week's opponent team first."); return; }
+  const textarea = document.getElementById("bulkRosterInput");
+  const lines = textarea.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) { toast("Paste at least one player line."); return; }
+
+  const assigned = opponentAssignedPlayerIds();
+  let added = 0, matched = 0;
+  const skipped = [];
+
+  lines.forEach((line) => {
+    const [name, posRaw, teamAbbr, byeRaw] = line.split(",").map((s) => s.trim());
+    if (!name || !posRaw) { skipped.push(line); return; }
+    let pos = posRaw.toUpperCase();
+    if (pos === "DEF") pos = "DST";
+    if (!BOARD_POSITIONS.includes(pos)) { skipped.push(`${name} (unknown position "${posRaw}")`); return; }
+    const bye = parseInt(byeRaw, 10) || 0;
+    const key = slugify(name);
+
+    let player = STATE.players.find((p) => slugify(p.name) === key);
+    if (player) {
+      if (player.status === "mine") { skipped.push(`${name} (already on your team)`); return; }
+      if (assigned.has(player.id) && !team.playerIds.includes(player.id)) { skipped.push(`${name} (already on another tracked opponent)`); return; }
+      if (player.status !== "other") player.status = "other";
+      matched++;
+    } else {
+      player = {
+        id: slugify(name) + "-" + pos.toLowerCase(),
+        name, pos, team: teamAbbr || "",
+        bye, rank: STATE.players.length + 1, tier: 5, adpDelta: null,
+        status: "other", injury: "Healthy",
+      };
+      STATE.players.push(player);
+      added++;
+    }
+    if (!team.playerIds.includes(player.id)) team.playerIds.push(player.id);
+  });
+
+  textarea.value = "";
+  save();
+  renderAll();
+  let msg = `${team.name}: ${added} new player${added === 1 ? "" : "s"} added, ${matched} matched`;
+  if (skipped.length) msg += `, ${skipped.length} skipped`;
+  toast(msg);
+  if (skipped.length) console.warn("Bulk roster add skipped:", skipped);
+});
+
 /* ================= TRADE ANALYZER ================= */
 // Simple linear rank-based estimate: the #1 overall player is worth the most,
 // value tapers to 0 by the back of the ranked pool. This is only meant to

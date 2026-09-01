@@ -236,6 +236,10 @@ h3{margin:26px 0 12px;font-size:1.08rem;}
 .suggestion-players .in{font-weight:700;color:var(--text);}
 .suggestion-arrow{color:var(--muted-2);}
 
+#scheduleTable select{min-width:200px;}
+#scheduleTable tr.current-week-row{background:var(--accent-dim);}
+#scheduleTable tr.current-week-row td:first-child{font-weight:800;color:var(--accent);}
+
 .alerts{color:var(--warn);font-size:0.84rem;font-weight:700;}
 
 .draft-tracker{

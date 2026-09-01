@@ -24,6 +24,109 @@ function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
+// Your league's other teams, pre-loaded so selecting one from This Week's
+// Opponent has a full roster from the start. Each row is [name, pos, team,
+// bye] — same format as the bulk-roster paste box. Transcribed from
+// league screenshots; team/bye may drift as the season goes, but that's
+// editable per-player like any other tracked opponent (remove/re-add, or
+// paste an updated roster over it).
+const DEFAULT_LEAGUE_TEAMS = [
+  ["Ball Too Well (Ali's version)", [
+    ["Bo Nix", "QB", "Den", 10], ["James Cook II", "RB", "Buf", 7], ["Saquon Barkley", "RB", "Phi", 10],
+    ["Tee Higgins", "WR", "Cin", 6], ["Zay Flowers", "WR", "Bal", 13], ["George Kittle", "TE", "SF", 8],
+    ["Luther Burden III", "WR", "Chi", 10], ["Bhayshul Tuten", "RB", "Jax", 7], ["Mike Evans", "WR", "TB", 8],
+    ["Marvin Harrison Jr.", "WR", "Ari", 14], ["Dalton Kincaid", "TE", "Buf", 7], ["Chris Rodriguez Jr.", "RB", "Jax", 7],
+    ["Romeo Doubs", "WR", "NE", 11], ["Eddy Pineiro", "K", "SF", 8], ["Patriots", "DST", "NE", 11],
+  ]],
+  ["BURROWito Bowl", [
+    ["Jalen Hurts", "QB", "Phi", 10], ["Jonathan Taylor", "RB", "Ind", 13], ["Jaylen Warren", "RB", "Pit", 9],
+    ["Nico Collins", "WR", "Hou", 8], ["Chris Olave", "WR", "NO", 8], ["Harold Fannin Jr.", "TE", "Cle", 11],
+    ["Terry McLaurin", "WR", "Was", 7], ["Davante Adams", "WR", "LAR", 11], ["Chris Godwin Jr.", "WR", "TB", 8],
+    ["Jordan Addison", "WR", "Min", 6], ["Greg Dulcich", "TE", "Mia", 6], ["Tyjae Spears", "RB", "Ten", 9],
+    ["Tyler Shough", "QB", "NO", 8], ["Cameron Dicker", "K", "LAC", 7], ["Seahawks", "DST", "Sea", 11],
+  ]],
+  ["Cleats & Cleavage", [
+    ["Trevor Lawrence", "QB", "Jax", 7], ["Jahmyr Gibbs", "RB", "Det", 6], ["Cam Skattebo", "RB", "NYG", 8],
+    ["Drake London", "WR", "Atl", 11], ["Rashee Rice", "WR", "KC", 5], ["Trey McBride", "TE", "Ari", 14],
+    ["Jameson Williams", "WR", "Det", 6], ["Jadarian Price", "RB", "Sea", 11], ["Rico Dowdle", "RB", "Atl", 9],
+    ["KC Concepcion", "WR", "Cle", 11], ["Mark Andrews", "TE", "Bal", 13], ["Matthew Stafford", "QB", "LAR", 11],
+    ["Jalen Coker", "WR", "Car", 5], ["Cam Little", "K", "Jax", 7], ["Steelers", "DST", "Pit", 9],
+  ]],
+  ["End Game", [
+    ["Lamar Jackson", "QB", "Bal", 13], ["Bijan Robinson", "RB", "Atl", 11], ["Ashton Jeanty", "RB", "LV", 13],
+    ["Ladd McConkey", "WR", "LAC", 7], ["Rome Odunze", "WR", "Chi", 10], ["Brock Bowers", "TE", "LV", 13],
+    ["Quinshon Judkins", "RB", "Cle", 11], ["Josh Downs", "WR", "Ind", 13], ["Jayden Reed", "WR", "GB", 11],
+    ["RJ Harvey", "RB", "Den", 10], ["De'Zhaun Stribling", "WR", "SF", 8], ["Kenny Gainwell", "RB", "TB", 10],
+    ["Wan'Dale Robinson", "WR", "NYG", 9], ["Tyler Loop", "K", "Bal", 13], ["Broncos", "DST", "Den", 10],
+  ]],
+  ["Hurts So Good", [
+    ["Jayden Daniels", "QB", "Was", 7], ["Christian McCaffrey", "RB", "SF", 8], ["Omarion Hampton", "RB", "LAC", 7],
+    ["A.J. Brown", "WR", "NE", 11], ["Jaylen Waddle", "WR", "Den", 10], ["Tyler Warren", "TE", "Ind", 13],
+    ["Christian Watson", "WR", "Min", 11], ["Jonathon Brooks", "RB", "Car", 5], ["DK Metcalf", "WR", "Pit", 9],
+    ["Quentin Johnston", "WR", "LAC", 7], ["Jordan Mason", "RB", "Min", 6], ["Isaiah Likely", "TE", "Dal", 8],
+    ["Patrick Mahomes", "QB", "KC", 5], ["Cairo Santos", "K", "Chi", 10], ["Eagles", "DST", "Phi", 10],
+  ]],
+  ["You're Losing (To) Me", [
+    ["Caleb Williams", "QB", "Chi", 10], ["Derrick Henry", "RB", "Bal", 13], ["D'Andre Swift", "RB", "Chi", 10],
+    ["Ja'Marr Chase", "WR", "Cin", 6], ["George Pickens", "WR", "Dal", 14], ["Colston Loveland", "TE", "Chi", 10],
+    ["Parker Washington", "WR", "Jax", 7], ["Carnell Tate", "WR", "Ten", 9], ["Justin Herbert", "QB", "LAC", 7],
+    ["Jacory Croskey-Merritt", "RB", "Was", 7], ["Blake Corum", "RB", "LAR", 11], ["Makai Lemon", "WR", "Phi", 10],
+    ["Kyle Monangai", "RB", "Car", 10], ["Will Reichard", "K", "Min", 6], ["Vikings", "DST", "Min", 6],
+  ]],
+  ["Meet Me Behind The Ball", [
+    ["Drake Maye", "QB", "NE", 11], ["Chase Brown", "RB", "Cin", 6], ["Javonte Williams", "RB", "Dal", 14],
+    ["Amon-Ra St. Brown", "WR", "Det", 6], ["DeVonta Smith", "WR", "Phi", 10], ["Tucker Kraft", "TE", "GB", 11],
+    ["DJ Moore", "WR", "Buf", 7], ["Brian Thomas Jr.", "WR", "Jax", 7], ["Tony Pollard", "RB", "Ten", 9],
+    ["Chuba Hubbard", "RB", "Car", 5], ["Brock Purdy", "QB", "SF", 8], ["Matthew Golden", "WR", "GB", 11],
+    ["Juwan Johnson", "TE", "NO", 8], ["Jason Myers", "K", "Sea", 11], ["Jaguars", "DST", "Jax", 7],
+  ]],
+  ["Nicole's Nice Team", [
+    ["Josh Allen", "QB", "Buf", 7], ["De'Von Achane", "RB", "Mia", 6], ["Jeremiyah Love", "RB", "Ari", 14],
+    ["Justin Jefferson", "WR", "Min", 6], ["Tetairoa McMillan", "WR", "Car", 5], ["Travis Kelce", "TE", "KC", 5],
+    ["David Montgomery", "RB", "Hou", 8], ["Rhamondre Stevenson", "RB", "NE", 11], ["Alec Pierce", "WR", "Ind", 13],
+    ["Courtland Sutton", "WR", "Den", 10], ["Jared Goff", "QB", "Det", 6], ["Aaron Jones Sr.", "RB", "Min", 6],
+    ["Jake Ferguson", "TE", "Dal", 14], ["Harrison Mevis", "K", "LAR", 11], ["Texans", "DST", "Hou", 8],
+  ]],
+  ["Unsolicited Dak Pics", [
+    ["Dak Prescott", "QB", "Dal", 14], ["Kyren Williams", "RB", "LAR", 11], ["Travis Etienne Jr.", "RB", "Jax", 8],
+    ["Jaxon Smith-Njigba", "WR", "Sea", 11], ["CeeDee Lamb", "WR", "Dal", 14], ["Kyle Pitts Sr.", "TE", "Atl", 11],
+    ["Bucky Irving", "RB", "TB", 10], ["Emeka Egbuka", "WR", "TB", 10], ["Stefon Diggs", "WR", "Phi", 7],
+    ["JK Dobbins", "RB", "Den", 10], ["Xavier Worthy", "WR", "KC", 5], ["Tank Bigsby", "RB", "Phi", 10],
+    ["Baker Mayfield", "QB", "TB", 10], ["Ka'imi Fairbairn", "K", "Hou", 8], ["Rams", "DST", "LAR", 11],
+  ]],
+];
+
+// Mirrors the bulk-roster-paste logic in the Opponent Tracker UI: match
+// existing players by name, create anything new as an "other" (drafted
+// elsewhere) player. Mutates `state` in place. Skips a team name that
+// already exists so re-running this (e.g. on an existing save) is safe.
+function applyDefaultLeagueTeams(state) {
+  const existingNames = new Set(state.opponentTeams.map((t) => t.name.toLowerCase()));
+  DEFAULT_LEAGUE_TEAMS.forEach(([teamName, roster]) => {
+    if (existingNames.has(teamName.toLowerCase())) return;
+    const playerIds = [];
+    roster.forEach(([name, pos, teamAbbr, bye]) => {
+      const key = slugify(name);
+      let player = state.players.find((p) => slugify(p.name) === key);
+      if (player) {
+        if (player.status === "mine") return;
+        if (player.status !== "other") player.status = "other";
+      } else {
+        player = {
+          id: slugify(name) + "-" + pos.toLowerCase(),
+          name, pos, team: teamAbbr, bye,
+          rank: state.players.length + 1, tier: 5, adpDelta: null,
+          status: "other", injury: "Healthy",
+        };
+        state.players.push(player);
+      }
+      if (!playerIds.includes(player.id)) playerIds.push(player.id);
+    });
+    state.opponentTeams.push({ id: "opp-" + slugify(teamName), name: teamName, playerIds });
+    existingNames.add(teamName.toLowerCase());
+  });
+}
+
 function buildSeedState() {
   const players = SEED_PLAYERS.map(([name, pos, team, bye, tier, adpDelta], idx) => ({
     id: slugify(name) + "-" + pos.toLowerCase(),
@@ -37,7 +140,7 @@ function buildSeedState() {
     status: "available", // available | mine | other
     injury: "Healthy",
   }));
-  return {
+  const state = {
     players,
     teamName: "Your Team",
     slots: DEFAULT_SLOTS.slice(),
@@ -51,7 +154,10 @@ function buildSeedState() {
     opponentTeams: [],       // [{id, name, playerIds}] league teams you've added
     schedule: {},            // week -> opponentTeam id, your season matchup schedule
     liveScoring: { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) },
+    _defaultLeagueTeamsApplied: true,
   };
+  applyDefaultLeagueTeams(state);
+  return state;
 }
 
 const DEFAULT_DRAFT_SETTINGS = { numTeams: 10, yourSlot: 1, totalRounds: 15 };
@@ -73,6 +179,12 @@ function load() {
       delete parsed.currentOpponentId;
       if (!parsed.liveScoring) parsed.liveScoring = { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) };
       if (!parsed.liveScoring.scoring) parsed.liveScoring.scoring = Object.assign({}, DEFAULT_SCORING);
+      // One-time merge of the pre-loaded league teams into an existing save
+      // (skips any team name you've already added yourself, and never runs twice).
+      if (!parsed._defaultLeagueTeamsApplied) {
+        applyDefaultLeagueTeams(parsed);
+        parsed._defaultLeagueTeamsApplied = true;
+      }
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }

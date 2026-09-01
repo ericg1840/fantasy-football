@@ -48,8 +48,8 @@ function buildSeedState() {
     dataUpdatedAt: SEED_DATA_DATE,
     draftSettings: { numTeams: 10, yourSlot: 1, totalRounds: 15 },
     watchlist: [],           // playerIds you're targeting
-    opponentTeams: [],       // [{id, name, playerIds}] teams you're tracking
-    currentOpponentId: null, // id of the opponent team currently shown in the lineup tab
+    opponentTeams: [],       // [{id, name, playerIds}] league teams you've added
+    schedule: {},            // week -> opponentTeam id, your season matchup schedule
     liveScoring: { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) },
   };
 }
@@ -69,7 +69,8 @@ function load() {
       if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
       if (!parsed.watchlist) parsed.watchlist = [];
       if (!parsed.opponentTeams) parsed.opponentTeams = [];
-      if (parsed.currentOpponentId === undefined) parsed.currentOpponentId = null;
+      if (!parsed.schedule) parsed.schedule = parsed.currentOpponentId ? { [parsed.currentWeek || 1]: parsed.currentOpponentId } : {};
+      delete parsed.currentOpponentId;
       if (!parsed.liveScoring) parsed.liveScoring = { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) };
       if (!parsed.liveScoring.scoring) parsed.liveScoring.scoring = Object.assign({}, DEFAULT_SCORING);
       return parsed;
@@ -784,7 +785,8 @@ function opponentTeamsList() {
 }
 
 function currentOpponentTeam() {
-  return STATE.opponentTeams.find((t) => t.id === STATE.currentOpponentId) || null;
+  const id = STATE.schedule[STATE.currentWeek];
+  return STATE.opponentTeams.find((t) => t.id === id) || null;
 }
 
 function opponentAssignedPlayerIds() {
@@ -797,7 +799,7 @@ function renderOpponentTeamSelect() {
   const sel = document.getElementById("opponentTeamSelect");
   sel.innerHTML = '<option value="">— No opponent selected —</option>' +
     STATE.opponentTeams.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
-  sel.value = STATE.currentOpponentId || "";
+  sel.value = STATE.schedule[STATE.currentWeek] || "";
 }
 
 function renderOpponentAddSelect() {
@@ -996,15 +998,56 @@ function renderMatchup() {
   `;
 }
 
+function makeTeamId() {
+  return "opp-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function renderScheduleTable() {
+  const tbody = document.getElementById("scheduleTbody");
+  tbody.innerHTML = "";
+  for (let week = 1; week <= SEASON_WEEKS; week++) {
+    const tr = document.createElement("tr");
+    if (week === STATE.currentWeek) tr.classList.add("current-week-row");
+    tr.innerHTML = `<td>Wk ${week}</td><td></td><td></td>`;
+
+    const selectTd = tr.children[1];
+    const sel = document.createElement("select");
+    sel.innerHTML = '<option value="">— none —</option>' +
+      STATE.opponentTeams.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+    sel.value = STATE.schedule[week] || "";
+    sel.addEventListener("change", () => {
+      if (sel.value) STATE.schedule[week] = sel.value;
+      else delete STATE.schedule[week];
+      save();
+      renderLineupTab();
+    });
+    selectTd.appendChild(sel);
+
+    const actionTd = tr.children[2];
+    if (week !== STATE.currentWeek) {
+      actionTd.appendChild(mkBtn("Go to week", () => {
+        STATE.currentWeek = week;
+        document.getElementById("currentWeek").value = week;
+        save();
+        renderLineupTab();
+        if (STATE.liveScoring.enabled) refreshLiveScoring();
+      }));
+    }
+    tbody.appendChild(tr);
+  }
+}
+
 function renderOpponentTracker() {
   renderOpponentTeamSelect();
   renderOpponentAddSelect();
   renderOpponentRoster();
   renderMatchup();
+  renderScheduleTable();
 }
 
 document.getElementById("opponentTeamSelect").addEventListener("change", (e) => {
-  STATE.currentOpponentId = e.target.value || null;
+  if (e.target.value) STATE.schedule[STATE.currentWeek] = e.target.value;
+  else delete STATE.schedule[STATE.currentWeek];
   save();
   renderOpponentTracker();
 });
@@ -1013,21 +1056,41 @@ document.getElementById("addOpponentTeamBtn").addEventListener("click", () => {
   const input = document.getElementById("opponentTeamNameInput");
   const name = input.value.trim();
   if (!name) { toast("Enter a name for the opponent team."); return; }
-  const team = { id: "opp-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, playerIds: [] };
+  const team = { id: makeTeamId(), name, playerIds: [] };
   STATE.opponentTeams.push(team);
-  STATE.currentOpponentId = team.id;
+  STATE.schedule[STATE.currentWeek] = team.id;
   input.value = "";
   save();
   renderOpponentTracker();
-  toast(`${name} added — now tracking.`);
+  toast(`${name} added — set as this week's opponent.`);
+});
+
+document.getElementById("bulkAddOpponentTeamsBtn").addEventListener("click", () => {
+  const textarea = document.getElementById("bulkOpponentTeamsInput");
+  const existingNames = new Set(STATE.opponentTeams.map((t) => t.name.toLowerCase()));
+  const names = textarea.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  let added = 0;
+  names.forEach((name) => {
+    if (existingNames.has(name.toLowerCase())) return;
+    STATE.opponentTeams.push({ id: makeTeamId(), name, playerIds: [] });
+    existingNames.add(name.toLowerCase());
+    added++;
+  });
+  if (!added) { toast(names.length ? "Those teams are already added." : "Paste at least one team name."); return; }
+  textarea.value = "";
+  save();
+  renderOpponentTracker();
+  toast(`Added ${added} team${added === 1 ? "" : "s"}. Set them on the Season Schedule below.`);
 });
 
 document.getElementById("removeOpponentTeamBtn").addEventListener("click", () => {
   const team = currentOpponentTeam();
   if (!team) return;
-  if (!confirm(`Remove "${team.name}" and stop tracking it? This won't affect any drafted player statuses.`)) return;
+  if (!confirm(`Remove "${team.name}" entirely (roster and any scheduled weeks)? This won't affect any drafted player statuses.`)) return;
   STATE.opponentTeams = STATE.opponentTeams.filter((t) => t.id !== team.id);
-  STATE.currentOpponentId = null;
+  Object.keys(STATE.schedule).forEach((week) => {
+    if (STATE.schedule[week] === team.id) delete STATE.schedule[week];
+  });
   save();
   renderOpponentTracker();
   toast(`${team.name} removed.`);
@@ -1040,6 +1103,59 @@ document.getElementById("opponentAddPlayer").addEventListener("change", (e) => {
   if (!team.playerIds.includes(id)) team.playerIds.push(id);
   save();
   renderOpponentTracker();
+});
+
+// Bulk-adds a whole roster to this week's opponent team from pasted lines of
+// "Name, Pos, Team, Bye". Matches existing players by name (ignoring
+// punctuation/case); anything unmatched is added to the player pool as a
+// new "other" (drafted-elsewhere) player so it behaves like any other
+// tracked player (bye/injury flags, live scoring, etc).
+document.getElementById("bulkAddRosterBtn").addEventListener("click", () => {
+  const team = currentOpponentTeam();
+  if (!team) { toast("Select or add this week's opponent team first."); return; }
+  const textarea = document.getElementById("bulkRosterInput");
+  const lines = textarea.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) { toast("Paste at least one player line."); return; }
+
+  const assigned = opponentAssignedPlayerIds();
+  let added = 0, matched = 0;
+  const skipped = [];
+
+  lines.forEach((line) => {
+    const [name, posRaw, teamAbbr, byeRaw] = line.split(",").map((s) => s.trim());
+    if (!name || !posRaw) { skipped.push(line); return; }
+    let pos = posRaw.toUpperCase();
+    if (pos === "DEF") pos = "DST";
+    if (!BOARD_POSITIONS.includes(pos)) { skipped.push(`${name} (unknown position "${posRaw}")`); return; }
+    const bye = parseInt(byeRaw, 10) || 0;
+    const key = slugify(name);
+
+    let player = STATE.players.find((p) => slugify(p.name) === key);
+    if (player) {
+      if (player.status === "mine") { skipped.push(`${name} (already on your team)`); return; }
+      if (assigned.has(player.id) && !team.playerIds.includes(player.id)) { skipped.push(`${name} (already on another tracked opponent)`); return; }
+      if (player.status !== "other") player.status = "other";
+      matched++;
+    } else {
+      player = {
+        id: slugify(name) + "-" + pos.toLowerCase(),
+        name, pos, team: teamAbbr || "",
+        bye, rank: STATE.players.length + 1, tier: 5, adpDelta: null,
+        status: "other", injury: "Healthy",
+      };
+      STATE.players.push(player);
+      added++;
+    }
+    if (!team.playerIds.includes(player.id)) team.playerIds.push(player.id);
+  });
+
+  textarea.value = "";
+  save();
+  renderAll();
+  let msg = `${team.name}: ${added} new player${added === 1 ? "" : "s"} added, ${matched} matched`;
+  if (skipped.length) msg += `, ${skipped.length} skipped`;
+  toast(msg);
+  if (skipped.length) console.warn("Bulk roster add skipped:", skipped);
 });
 
 /* ================= TRADE ANALYZER ================= */

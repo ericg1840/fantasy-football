@@ -149,26 +149,52 @@
     <div id="lineupSuggestions"></div>
 
     <h3 class="section-label">Opponent Tracker</h3>
-    <p class="hint">Pick or create an opponent team and add players you've marked "Drafted (other)" to its roster to see a head-to-head comparison for the selected week. The "Est. Value" score is the same rank-based estimate used on the Trade Analyzer tab — a sanity-check, not a real point projection.</p>
+    <p class="hint">Add the teams in your league once (with their rosters), then set your season schedule below so the right opponent — and their players — is automatically tracked each week you view. The "Est. Value" score is the same rank-based estimate used on the Trade Analyzer tab — a sanity-check, not a real point projection.</p>
+    <div class="panel-controls">
+      <input type="text" id="opponentTeamNameInput" placeholder="Team name (e.g. BURROWito Bowl)">
+      <button id="addOpponentTeamBtn" class="primary-btn">+ Add Team</button>
+      <button id="removeOpponentTeamBtn" class="danger-btn">Remove This Week's Team</button>
+    </div>
+    <div class="panel-controls">
+      <textarea id="bulkOpponentTeamsInput" rows="2" placeholder="Or paste your whole league at once — one team name per line"></textarea>
+    </div>
+    <div class="btn-row">
+      <button id="bulkAddOpponentTeamsBtn">+ Add All Teams</button>
+    </div>
+
+    <h3 class="section-label">This Week's Opponent</h3>
     <div class="panel-controls">
       <select id="opponentTeamSelect"><option value="">— No opponent selected —</option></select>
-      <input type="text" id="opponentTeamNameInput" placeholder="New opponent team name">
-      <button id="addOpponentTeamBtn" class="primary-btn">+ Add Team</button>
-      <button id="removeOpponentTeamBtn" class="danger-btn">Remove Team</button>
+      <select id="opponentAddPlayer"><option value="">+ Add player to opponent roster…</option></select>
+      <span id="opponentAlerts" class="alerts"></span>
+    </div>
+    <p class="hint">Paste this team's whole roster at once — one player per line, as <code>Name, Pos, Team, Bye</code> (e.g. <code>Jalen Hurts, QB, Phi, 10</code>). Matches existing players by name; anything new is added to your player pool automatically.</p>
+    <div class="panel-controls">
+      <textarea id="bulkRosterInput" rows="3" placeholder="Jalen Hurts, QB, Phi, 10&#10;Jonathan Taylor, RB, Ind, 13"></textarea>
+    </div>
+    <div class="btn-row">
+      <button id="bulkAddRosterBtn">+ Add Roster</button>
     </div>
 
     <div id="matchupCard" class="matchup-card" hidden></div>
 
-    <div class="panel-controls">
-      <select id="opponentAddPlayer"><option value="">+ Add player to opponent roster…</option></select>
-      <span id="opponentAlerts" class="alerts"></span>
-    </div>
     <details class="bench-details" open>
       <summary>Opponent Roster</summary>
       <div class="table-wrap">
         <table id="opponentRosterTable">
           <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>This Week</th><th>Live Pts</th><th>Actions</th></tr></thead>
           <tbody id="opponentRosterTbody"></tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="bench-details">
+      <summary>Season Schedule</summary>
+      <p class="hint">Set your opponent for every week at once. Whichever team is scheduled for the week you're viewing becomes "This Week's Opponent" above automatically.</p>
+      <div class="table-wrap">
+        <table id="scheduleTable">
+          <thead><tr><th>Week</th><th>Opponent</th><th></th></tr></thead>
+          <tbody id="scheduleTbody"></tbody>
         </table>
       </div>
     </details>

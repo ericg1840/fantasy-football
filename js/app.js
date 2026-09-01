@@ -39,6 +39,8 @@ function buildSeedState() {
     dataUpdatedAt: SEED_DATA_DATE,
     draftSettings: { numTeams: 10, yourSlot: 1, totalRounds: 15 },
     watchlist: [],           // playerIds you're targeting
+    opponentTeams: [],       // [{id, name, playerIds}] teams you're tracking
+    currentOpponentId: null, // id of the opponent team currently shown in the lineup tab
   };
 }
 
@@ -55,6 +57,8 @@ function load() {
       if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
       if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
       if (!parsed.watchlist) parsed.watchlist = [];
+      if (!parsed.opponentTeams) parsed.opponentTeams = [];
+      if (parsed.currentOpponentId === undefined) parsed.currentOpponentId = null;
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }
@@ -619,6 +623,8 @@ function renderLineupTab() {
   document.getElementById("lineupAlerts").textContent = alerts
     ? `⚠ ${alerts} slot(s) need attention this week`
     : "✓ Lineup looks good for this week";
+
+  renderOpponentTracker();
 }
 
 function autoOptimizeWeek() {
@@ -663,6 +669,138 @@ document.getElementById("resetWeekLineupBtn").addEventListener("click", () => {
   save();
   renderLineupTab();
   toast(`Week ${week} reset to season default.`);
+});
+
+/* ================= OPPONENT TRACKER ================= */
+function opponentTeamsList() {
+  return STATE.opponentTeams;
+}
+
+function currentOpponentTeam() {
+  return STATE.opponentTeams.find((t) => t.id === STATE.currentOpponentId) || null;
+}
+
+function opponentAssignedPlayerIds() {
+  const ids = new Set();
+  STATE.opponentTeams.forEach((t) => t.playerIds.forEach((id) => ids.add(id)));
+  return ids;
+}
+
+function renderOpponentTeamSelect() {
+  const sel = document.getElementById("opponentTeamSelect");
+  sel.innerHTML = '<option value="">— No opponent selected —</option>' +
+    STATE.opponentTeams.map((t) => `<option value="${t.id}">${t.name}</option>`).join("");
+  sel.value = STATE.currentOpponentId || "";
+}
+
+function renderOpponentAddSelect() {
+  const sel = document.getElementById("opponentAddPlayer");
+  const team = currentOpponentTeam();
+  if (!team) {
+    sel.innerHTML = '<option value="">+ Add player to opponent roster…</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  const assigned = opponentAssignedPlayerIds();
+  const candidates = STATE.players
+    .filter((p) => p.status === "other" && !assigned.has(p.id))
+    .sort((a, b) => a.rank - b.rank);
+  sel.innerHTML = '<option value="">+ Add player to opponent roster…</option>' +
+    candidates.map((p) => `<option value="${p.id}">${p.name} (${p.pos} · ${p.team}) — Rank ${p.rank}</option>`).join("");
+  sel.value = "";
+}
+
+function renderOpponentRoster() {
+  const tbody = document.getElementById("opponentRosterTbody");
+  tbody.innerHTML = "";
+  const alertsEl = document.getElementById("opponentAlerts");
+  const team = currentOpponentTeam();
+  if (!team) {
+    alertsEl.textContent = "";
+    return;
+  }
+  const week = STATE.currentWeek;
+  const roster = team.playerIds
+    .map((id) => playerById(id))
+    .filter(Boolean)
+    .sort((a, b) => a.rank - b.rank);
+
+  let unavailable = 0;
+  roster.forEach((p) => {
+    if (!isAvailableForWeek(p, week)) unavailable++;
+    const weekLabel = p.bye === week
+      ? `<span class="status-pill status-Bye">BYE Wk ${week}</span>`
+      : p.injury !== "Healthy"
+        ? `<span class="status-pill status-${p.injury}">${p.injury}</span>`
+        : `<span class="status-pill status-Healthy">Active</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.name}</td>
+      <td><span class="badge badge-${p.pos}">${p.pos}</span></td>
+      <td>${p.team}</td>
+      <td>${p.bye}</td>
+      <td>${p.injury}</td>
+      <td>${weekLabel}</td>
+      <td></td>
+    `;
+    const actionsTd = tr.children[6];
+    actionsTd.appendChild(mkBtn("Remove", () => {
+      team.playerIds = team.playerIds.filter((id) => id !== p.id);
+      save();
+      renderOpponentTracker();
+    }));
+    tbody.appendChild(tr);
+  });
+
+  alertsEl.textContent = roster.length
+    ? `${roster.length - unavailable}/${roster.length} of ${team.name}'s tracked players available in Week ${week}`
+    : `No players added to ${team.name} yet.`;
+}
+
+function renderOpponentTracker() {
+  renderOpponentTeamSelect();
+  renderOpponentAddSelect();
+  renderOpponentRoster();
+}
+
+document.getElementById("opponentTeamSelect").addEventListener("change", (e) => {
+  STATE.currentOpponentId = e.target.value || null;
+  save();
+  renderOpponentTracker();
+});
+
+document.getElementById("addOpponentTeamBtn").addEventListener("click", () => {
+  const input = document.getElementById("opponentTeamNameInput");
+  const name = input.value.trim();
+  if (!name) { toast("Enter a name for the opponent team."); return; }
+  const team = { id: "opp-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, playerIds: [] };
+  STATE.opponentTeams.push(team);
+  STATE.currentOpponentId = team.id;
+  input.value = "";
+  save();
+  renderOpponentTracker();
+  toast(`${name} added — now tracking.`);
+});
+
+document.getElementById("removeOpponentTeamBtn").addEventListener("click", () => {
+  const team = currentOpponentTeam();
+  if (!team) return;
+  if (!confirm(`Remove "${team.name}" and stop tracking it? This won't affect any drafted player statuses.`)) return;
+  STATE.opponentTeams = STATE.opponentTeams.filter((t) => t.id !== team.id);
+  STATE.currentOpponentId = null;
+  save();
+  renderOpponentTracker();
+  toast(`${team.name} removed.`);
+});
+
+document.getElementById("opponentAddPlayer").addEventListener("change", (e) => {
+  const team = currentOpponentTeam();
+  const id = e.target.value;
+  if (!team || !id) return;
+  if (!team.playerIds.includes(id)) team.playerIds.push(id);
+  save();
+  renderOpponentTracker();
 });
 
 /* ================= TRADE ANALYZER ================= */

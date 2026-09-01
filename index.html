@@ -139,6 +139,25 @@
         <tbody id="lineupBenchTbody"></tbody>
       </table>
     </div>
+
+    <h3 class="section-label">Opponent Tracker</h3>
+    <p class="hint">Pick or create an opponent team and add players you've marked "Drafted (other)" to its roster, so you can track their bye weeks and injury status alongside your own lineup each week.</p>
+    <div class="panel-controls">
+      <select id="opponentTeamSelect"><option value="">— No opponent selected —</option></select>
+      <input type="text" id="opponentTeamNameInput" placeholder="New opponent team name">
+      <button id="addOpponentTeamBtn" class="primary-btn">+ Add Team</button>
+      <button id="removeOpponentTeamBtn" class="danger-btn">Remove Team</button>
+    </div>
+    <div class="panel-controls">
+      <select id="opponentAddPlayer"><option value="">+ Add player to opponent roster…</option></select>
+      <span id="opponentAlerts" class="alerts"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="opponentRosterTable">
+        <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>This Week</th><th>Actions</th></tr></thead>
+        <tbody id="opponentRosterTbody"></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- TRADE ANALYZER -->

@@ -641,7 +641,95 @@ function renderLineupTab() {
     ? `⚠ ${alerts} slot(s) need attention this week`
     : "✓ Lineup looks good for this week";
 
+  renderLineupSuggestions();
   renderOpponentTracker();
+}
+
+// For each starting slot, suggests a healthy bench replacement when the
+// current starter is on bye/hurt (or the slot is empty), or when a healthy
+// bench player is ranked ahead of a healthy starter at an eligible slot.
+// Doesn't touch STATE — purely advisory until the user hits Apply.
+function buildLineupSuggestions(week) {
+  const assignment = effectiveWeekAssignment(week);
+  const usedIds = new Set(Object.values(assignment).filter(Boolean));
+  const bench = minePlayers().filter((p) => !usedIds.has(p.id));
+  const claimed = new Set();
+  const bySlotIdx = {};
+
+  const order = STATE.slots
+    .map((name, idx) => ({ name, idx }))
+    .sort((a, b) => (a.name === "FLEX") - (b.name === "FLEX"));
+
+  order.forEach(({ name, idx }) => {
+    const currentId = assignment[idx];
+    const current = currentId ? playerById(currentId) : null;
+    const candidates = bench
+      .filter((p) => !claimed.has(p.id) && eligibleForSlot(name, p.pos) && p.bye !== week && SEVERITY[p.injury] === 0)
+      .sort((a, b) => a.rank - b.rank);
+
+    if (!current) {
+      if (candidates.length) {
+        bySlotIdx[idx] = { reason: "empty", current: null, suggested: candidates[0] };
+        claimed.add(candidates[0].id);
+      }
+      return;
+    }
+    const severity = current.bye === week ? 3 : SEVERITY[current.injury];
+    if (severity >= 2) {
+      bySlotIdx[idx] = { reason: current.bye === week ? "bye" : "injury", current, suggested: candidates[0] || null };
+      if (candidates.length) claimed.add(candidates[0].id);
+    } else {
+      const better = candidates.find((p) => p.rank < current.rank);
+      if (better) {
+        bySlotIdx[idx] = { reason: "upgrade", current, suggested: better };
+        claimed.add(better.id);
+      }
+    }
+  });
+
+  return STATE.slots
+    .map((name, idx) => (bySlotIdx[idx] ? Object.assign({ idx, slotName: name }, bySlotIdx[idx]) : null))
+    .filter(Boolean);
+}
+
+function renderLineupSuggestions() {
+  const container = document.getElementById("lineupSuggestions");
+  const week = STATE.currentWeek;
+  const suggestions = buildLineupSuggestions(week);
+
+  if (!suggestions.length) {
+    container.innerHTML = `<p class="hint">✓ No lineup issues detected for Week ${week} — nothing on bye/hurt, and no healthy bench player outranks a healthy starter.</p>`;
+    return;
+  }
+
+  const reasonLabels = { bye: "Bye", injury: "Injury", empty: "Empty", upgrade: "Upgrade" };
+  container.innerHTML = `<div class="suggestion-list">${suggestions.map((s) => {
+    const reasonLabel = s.reason === "injury" && s.current ? s.current.injury : reasonLabels[s.reason];
+    const outHtml = s.current
+      ? `<span class="out">${s.current.name}</span>`
+      : `<span class="matchup-player-empty">Empty slot</span>`;
+    const inHtml = s.suggested
+      ? `<span class="in">${s.suggested.name}</span> <span class="matchup-player-meta">(${s.suggested.pos} · ${s.suggested.team}, Rank ${s.suggested.rank})</span>`
+      : `<span class="live-pts-empty">No healthy bench option available</span>`;
+    return `
+      <div class="suggestion-row" data-idx="${s.idx}">
+        <span class="slot-tag">${s.slotName}</span>
+        <span class="suggestion-reason ${s.reason}">${reasonLabel}</span>
+        <div class="suggestion-players">${outHtml}<span class="suggestion-arrow">→</span>${inHtml}</div>
+      </div>`;
+  }).join("")}</div>`;
+
+  suggestions.forEach((s) => {
+    if (!s.suggested) return;
+    const row = container.querySelector(`.suggestion-row[data-idx="${s.idx}"]`);
+    row.appendChild(mkBtn("Apply", () => {
+      if (!STATE.weeklyLineup[week]) STATE.weeklyLineup[week] = {};
+      STATE.weeklyLineup[week][s.idx] = s.suggested.id;
+      save();
+      renderLineupTab();
+      toast(`${s.suggested.name} moved into ${s.slotName}.`);
+    }));
+  });
 }
 
 function autoOptimizeWeek() {
@@ -850,6 +938,15 @@ function renderMatchup() {
   const pctOpp = 100 - pctMine;
   const mineFavored = pctMine === pctOpp ? null : pctMine > pctOpp;
 
+  let verdictCls = "unknown", verdictText = "Set your lineup and add players to the opponent's roster to see a projected winner.";
+  if (filledMine > 0 || filledOpp > 0) {
+    const diff = Math.abs(pctMine - pctOpp);
+    const margin = diff >= 30 ? " comfortably" : diff <= 10 ? " narrowly" : "";
+    if (mineFavored === true) { verdictCls = "win"; verdictText = `🏆 Projected to win${margin} this week`; }
+    else if (mineFavored === false) { verdictCls = "loss"; verdictText = `📉 Projected to be the underdog${margin} this week`; }
+    else { verdictCls = "even"; verdictText = "🤝 Toss-up matchup this week"; }
+  }
+
   const rows = STATE.slots.map((slotName, idx) => {
     const mine = myAssignment[idx] ? playerById(myAssignment[idx]) : null;
     return `
@@ -872,6 +969,7 @@ function renderMatchup() {
         <div class="matchup-team-sub">Week ${week} lineup</div>
       </div>
       <div class="matchup-vs">
+        <div class="matchup-verdict ${verdictCls}">${verdictText}</div>
         <div class="matchup-totals">${totalMine} <span class="vs">vs</span> ${totalOpp}</div>
         <div class="matchup-sub">${totalsLabel}</div>
       </div>

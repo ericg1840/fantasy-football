@@ -6,6 +6,11 @@ const FLEX_ELIGIBLE = ["RB", "WR", "TE"];
 const INJURY_LEVELS = ["Healthy", "Questionable", "Doubtful", "Out", "IR"];
 const SEVERITY = { Healthy: 0, Questionable: 1, Doubtful: 2, Out: 3, IR: 3 };
 const BOARD_POSITIONS = ["QB", "RB", "WR", "TE", "DST", "K"];
+const NFL_TEAMS = [
+  "ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB",
+  "HOU", "IND", "JAX", "KC", "LV", "LAR", "LAC", "MIA", "MIN", "NE", "NO", "NYG",
+  "NYJ", "PHI", "PIT", "SF", "SEA", "TB", "TEN", "WSH",
+];
 // Typical roster-construction targets (starters + realistic bench depth),
 // used only as a draft-day guidance heuristic, independent of league slot config.
 const RECOMMENDED_COUNTS = { QB: 2, RB: 5, WR: 6, TE: 2, DST: 1, K: 1 };
@@ -153,6 +158,7 @@ function buildSeedState() {
     watchlist: [],           // playerIds you're targeting
     opponentTeams: [],       // [{id, name, playerIds}] league teams you've added
     schedule: {},            // week -> opponentTeam id, your season matchup schedule
+    nflSchedule: {},         // NFL team abbrev -> [18 entries], "@OPP" | "OPP" | "BYE"
     liveScoring: { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) },
     _defaultLeagueTeamsApplied: true,
   };
@@ -175,6 +181,7 @@ function load() {
       if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
       if (!parsed.watchlist) parsed.watchlist = [];
       if (!parsed.opponentTeams) parsed.opponentTeams = [];
+      if (!parsed.nflSchedule) parsed.nflSchedule = {};
       if (!parsed.schedule) parsed.schedule = parsed.currentOpponentId ? { [parsed.currentWeek || 1]: parsed.currentOpponentId } : {};
       delete parsed.currentOpponentId;
       if (!parsed.liveScoring) parsed.liveScoring = { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) };
@@ -1110,6 +1117,62 @@ function renderMatchup() {
   `;
 }
 
+/* ================= NFL SCHEDULE ================= */
+function renderNflScheduleTab() {
+  const head = document.getElementById("nflScheduleHead");
+  const tbody = document.getElementById("nflScheduleTbody");
+  const week = STATE.currentWeek;
+
+  head.innerHTML = "<th>Team</th>" +
+    Array.from({ length: SEASON_WEEKS }, (_, i) => {
+      const w = i + 1;
+      return `<th class="${w === week ? "current-week-col" : ""}">${w}</th>`;
+    }).join("");
+
+  tbody.innerHTML = "";
+  NFL_TEAMS.forEach((team) => {
+    const row = STATE.nflSchedule[team];
+    const tr = document.createElement("tr");
+    let cells = `<td>${team}</td>`;
+    for (let i = 0; i < SEASON_WEEKS; i++) {
+      const val = row ? row[i] : null;
+      const isCurrent = i + 1 === week;
+      const isBye = val === "BYE";
+      const isAway = typeof val === "string" && val.startsWith("@");
+      const cls = [isCurrent ? "current-week-col" : "", isBye ? "bye-cell" : "", isAway ? "away" : ""].filter(Boolean).join(" ");
+      cells += `<td class="${cls}">${val || "—"}</td>`;
+    }
+    tr.innerHTML = cells;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("nflScheduleImportBtn").addEventListener("click", () => {
+  const textarea = document.getElementById("nflScheduleImportInput");
+  const lines = textarea.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (!lines.length) { toast("Paste at least one row."); return; }
+
+  let updated = 0;
+  const problems = [];
+  lines.forEach((line) => {
+    const parts = line.split(",").map((s) => s.trim()).filter((s) => s !== "");
+    const team = (parts[0] || "").toUpperCase();
+    const weeks = parts.slice(1);
+    if (!NFL_TEAMS.includes(team)) { problems.push(`"${parts[0]}" isn't a recognized team code`); return; }
+    if (weeks.length !== SEASON_WEEKS) { problems.push(`${team}: expected ${SEASON_WEEKS} weeks, got ${weeks.length}`); return; }
+    STATE.nflSchedule[team] = weeks.map((w) => w.toUpperCase());
+    updated++;
+  });
+
+  textarea.value = "";
+  save();
+  renderNflScheduleTab();
+  let msg = `${updated} team row${updated === 1 ? "" : "s"} updated.`;
+  if (problems.length) msg += ` ${problems.length} skipped — see console.`;
+  toast(msg);
+  if (problems.length) console.warn("NFL schedule import problems:", problems);
+});
+
 function makeTeamId() {
   return "opp-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
@@ -1783,6 +1846,7 @@ function renderAll() {
   renderTeamTab();
   renderSeasonOverview();
   renderLineupTab();
+  renderNflScheduleTab();
   renderTradeTab();
   renderCompareTab();
   document.getElementById("teamNameInput").value = STATE.teamName;

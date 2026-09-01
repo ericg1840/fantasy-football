@@ -240,6 +240,18 @@ h3{margin:26px 0 12px;font-size:1.08rem;}
 #scheduleTable tr.current-week-row{background:var(--accent-dim);}
 #scheduleTable tr.current-week-row td:first-child{font-weight:800;color:var(--accent);}
 
+#nflScheduleTable{font-variant-numeric:tabular-nums;}
+#nflScheduleTable th, #nflScheduleTable td{text-align:center;padding:6px 10px;white-space:nowrap;font-size:.8rem;}
+#nflScheduleTable th:first-child, #nflScheduleTable td:first-child{
+  text-align:left;position:sticky;left:0;background:var(--bg2);z-index:1;
+  font-family:var(--font-display);font-weight:700;font-size:.78rem;
+}
+#nflScheduleTable td:first-child{background:var(--card-hi);}
+#nflScheduleTable td.away{color:var(--ink-blue);}
+#nflScheduleTable td.bye-cell{color:var(--muted-2);font-style:italic;}
+#nflScheduleTable td.current-week-col{box-shadow:0 0 0 1px var(--link) inset;background:var(--accent-dim);}
+#nflScheduleTable th.current-week-col{color:var(--accent);}
+
 .alerts{color:var(--warn);font-size:0.84rem;font-weight:700;}
 
 .draft-tracker{

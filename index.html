@@ -25,6 +25,7 @@
     <button class="tab-btn active" data-tab="draft">Draft Board</button>
     <button class="tab-btn" data-tab="team">My Team</button>
     <button class="tab-btn" data-tab="lineup">Weekly Lineup</button>
+    <button class="tab-btn" data-tab="schedule">NFL Schedule</button>
     <button class="tab-btn" data-tab="trade">Trade Analyzer</button>
     <button class="tab-btn" data-tab="compare">Compare</button>
     <button class="tab-btn" data-tab="data">Import / Export</button>
@@ -198,6 +199,23 @@
         </table>
       </div>
     </details>
+  </section>
+
+  <!-- NFL SCHEDULE -->
+  <section id="tab-schedule" class="tab-panel">
+    <p class="hint">Every team's opponent for each week (@ = away, BYE = bye week). The current week's column is highlighted. This ships with a best-effort starting dataset transcribed from a screenshot — if any cell looks wrong, paste a correction below (one team per line: <code>TEAM,wk1,wk2,...,wk18</code>, e.g. <code>ARI,@LAC,SEA,@SF,...</code>) and it'll overwrite just that team's row.</p>
+    <div class="panel-controls">
+      <textarea id="nflScheduleImportInput" rows="2" placeholder="ARI,@LAC,SEA,@SF,@NYG,DET,@LAR,DEN,@DAL,@SEA,LAR,KC,@WSH,PHI,BYE,NYJ,@NO,LV,SF"></textarea>
+    </div>
+    <div class="btn-row">
+      <button id="nflScheduleImportBtn" class="primary-btn">Import Rows</button>
+    </div>
+    <div class="table-wrap">
+      <table id="nflScheduleTable">
+        <thead><tr id="nflScheduleHead"></tr></thead>
+        <tbody id="nflScheduleTbody"></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- TRADE ANALYZER -->

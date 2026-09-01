@@ -103,13 +103,15 @@
       <button id="resetTeamBtn" class="danger-btn">Clear Lineup</button>
     </div>
     <div class="roster-grid" id="rosterGrid"></div>
-    <h3>Bench</h3>
-    <div class="table-wrap">
-      <table id="benchTable">
-        <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>Actions</th></tr></thead>
-        <tbody id="benchTbody"></tbody>
-      </table>
-    </div>
+    <details class="bench-details" open>
+      <summary>Bench</summary>
+      <div class="table-wrap">
+        <table id="benchTable">
+          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>Actions</th></tr></thead>
+          <tbody id="benchTbody"></tbody>
+        </table>
+      </div>
+    </details>
   </section>
 
   <!-- WEEKLY LINEUP -->
@@ -132,32 +134,40 @@
       <span id="lineupAlerts" class="alerts"></span>
     </div>
     <div class="roster-grid" id="lineupGrid"></div>
-    <h3>Bench (Week Status)</h3>
-    <div class="table-wrap">
-      <table id="lineupBenchTable">
-        <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury Status</th><th>Actions</th></tr></thead>
-        <tbody id="lineupBenchTbody"></tbody>
-      </table>
-    </div>
+    <details class="bench-details" open>
+      <summary>Bench (Week Status)</summary>
+      <div class="table-wrap">
+        <table id="lineupBenchTable">
+          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury Status</th><th>Actions</th></tr></thead>
+          <tbody id="lineupBenchTbody"></tbody>
+        </table>
+      </div>
+    </details>
 
     <h3 class="section-label">Opponent Tracker</h3>
-    <p class="hint">Pick or create an opponent team and add players you've marked "Drafted (other)" to its roster, so you can track their bye weeks and injury status alongside your own lineup each week.</p>
+    <p class="hint">Pick or create an opponent team and add players you've marked "Drafted (other)" to its roster to see a head-to-head comparison for the selected week. The "Est. Value" score is the same rank-based estimate used on the Trade Analyzer tab — a sanity-check, not a real point projection.</p>
     <div class="panel-controls">
       <select id="opponentTeamSelect"><option value="">— No opponent selected —</option></select>
       <input type="text" id="opponentTeamNameInput" placeholder="New opponent team name">
       <button id="addOpponentTeamBtn" class="primary-btn">+ Add Team</button>
       <button id="removeOpponentTeamBtn" class="danger-btn">Remove Team</button>
     </div>
+
+    <div id="matchupCard" class="matchup-card" hidden></div>
+
     <div class="panel-controls">
       <select id="opponentAddPlayer"><option value="">+ Add player to opponent roster…</option></select>
       <span id="opponentAlerts" class="alerts"></span>
     </div>
-    <div class="table-wrap">
-      <table id="opponentRosterTable">
-        <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>This Week</th><th>Actions</th></tr></thead>
-        <tbody id="opponentRosterTbody"></tbody>
-      </table>
-    </div>
+    <details class="bench-details" open>
+      <summary>Opponent Roster</summary>
+      <div class="table-wrap">
+        <table id="opponentRosterTable">
+          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>This Week</th><th>Actions</th></tr></thead>
+          <tbody id="opponentRosterTbody"></tbody>
+        </table>
+      </div>
+    </details>
   </section>
 
   <!-- TRADE ANALYZER -->

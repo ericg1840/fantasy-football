@@ -39,6 +39,7 @@ function buildSeedState() {
   }));
   return {
     players,
+    teamName: "Your Team",
     slots: DEFAULT_SLOTS.slice(),
     rosterAssignment: {},   // slotIndex -> playerId  (season default plan)
     weeklyLineup: {},       // week -> { slotIndex -> playerId }
@@ -62,6 +63,7 @@ function load() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (!parsed.teamName) parsed.teamName = "Your Team";
       if (!parsed.pickLog) parsed.pickLog = [];
       if (!parsed.dataUpdatedAt) parsed.dataUpdatedAt = SEED_DATA_DATE;
       if (!parsed.draftSettings) parsed.draftSettings = Object.assign({}, DEFAULT_DRAFT_SETTINGS);
@@ -965,7 +967,7 @@ function renderMatchup() {
     <div class="matchup-teams">
       <div class="matchup-team">
         <div class="matchup-team-icon">🏈</div>
-        <div class="matchup-team-name">Your Team</div>
+        <div class="matchup-team-name">${STATE.teamName}</div>
         <div class="matchup-team-sub">Week ${week} lineup</div>
       </div>
       <div class="matchup-vs">
@@ -988,7 +990,7 @@ function renderMatchup() {
       <span>${pctOpp}% ${mineFavored === false ? "Favorite" : mineFavored === true ? "Underdog" : "Even"}</span>
     </div>
     <table class="matchup-table">
-      <thead><tr><th>Your Player</th><th>Slot</th><th>${team.name}</th></tr></thead>
+      <thead><tr><th>${STATE.teamName}</th><th>Slot</th><th>${team.name}</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   `;
@@ -1335,6 +1337,15 @@ document.getElementById("restoreFile").addEventListener("change", (e) => {
   reader.readAsText(file);
 });
 
+document.getElementById("saveTeamNameBtn").addEventListener("click", () => {
+  const name = document.getElementById("teamNameInput").value.trim();
+  if (!name) { toast("Enter a team name."); return; }
+  STATE.teamName = name;
+  save();
+  renderAll();
+  toast("Team name saved.");
+});
+
 document.getElementById("saveSlotsBtn").addEventListener("click", () => {
   const raw = document.getElementById("slotsInput").value;
   const slots = raw.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
@@ -1546,6 +1557,7 @@ function renderAll() {
   renderLineupTab();
   renderTradeTab();
   renderCompareTab();
+  document.getElementById("teamNameInput").value = STATE.teamName;
   document.getElementById("slotsInput").value = STATE.slots.join(",");
   document.getElementById("draftNumTeams").value = STATE.draftSettings.numTeams;
   document.getElementById("draftYourSlot").value = STATE.draftSettings.yourSlot;

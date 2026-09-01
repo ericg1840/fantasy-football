@@ -138,7 +138,7 @@
       <summary>Bench (Week Status)</summary>
       <div class="table-wrap">
         <table id="lineupBenchTable">
-          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury Status</th><th>Live Pts</th><th>Actions</th></tr></thead>
           <tbody id="lineupBenchTbody"></tbody>
         </table>
       </div>
@@ -163,7 +163,7 @@
       <summary>Opponent Roster</summary>
       <div class="table-wrap">
         <table id="opponentRosterTable">
-          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>This Week</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Player</th><th>Pos</th><th>Team</th><th>Bye</th><th>Injury</th><th>This Week</th><th>Live Pts</th><th>Actions</th></tr></thead>
           <tbody id="opponentRosterTbody"></tbody>
         </table>
       </div>
@@ -258,6 +258,25 @@
         <div class="btn-row">
           <button id="saveDraftTrackerBtn" class="primary-btn">Save Draft Settings</button>
         </div>
+      </div>
+      <div class="data-card">
+        <h3>Live Scoring <span class="beta-tag">beta</span></h3>
+        <p class="hint">Pulls real stat lines from a free, public NFL stats API (no account needed) and turns them into fantasy points using the scoring rules below. Offense only (QB/RB/WR/TE) — K and DST aren't computed yet. This depends on an unofficial third-party API, so treat it as best-effort: it may be slow, incomplete during live games, or occasionally unavailable.</p>
+        <label><input type="checkbox" id="liveScoringEnabled"> Enable live scoring</label>
+        <div class="live-scoring-grid">
+          <label>Pass yards / pt <input type="text" id="scorePassYdPerPt" inputmode="decimal"></label>
+          <label>Pass TD <input type="text" id="scorePassTD" inputmode="decimal"></label>
+          <label>Interception <input type="text" id="scorePassInt" inputmode="decimal"></label>
+          <label>Rush/Rec yards / pt <input type="text" id="scoreYdPerPt" inputmode="decimal"></label>
+          <label>Rush/Rec TD <input type="text" id="scoreTD" inputmode="decimal"></label>
+          <label>Reception (PPR) <input type="text" id="scoreReception" inputmode="decimal"></label>
+          <label>Fumble lost <input type="text" id="scoreFumLost" inputmode="decimal"></label>
+        </div>
+        <div class="btn-row">
+          <button id="saveLiveScoringBtn" class="primary-btn">Save Scoring</button>
+          <button id="refreshLiveScoringBtn">🔄 Refresh Live Scores</button>
+        </div>
+        <p class="hint" id="liveScoringStatus">Live scoring is off.</p>
       </div>
     </div>
   </section>

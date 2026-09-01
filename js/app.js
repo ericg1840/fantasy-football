@@ -12,6 +12,14 @@ const RECOMMENDED_COUNTS = { QB: 2, RB: 5, WR: 6, TE: 2, DST: 1, K: 1 };
 // Tier <= this counts as "top tier" for the scarcity note on Best Available.
 const TOP_TIER_CUTOFF = 2;
 
+// Full-PPR-ish defaults; editable in Import/Export -> Live Scoring.
+const DEFAULT_SCORING = {
+  passYdPerPt: 25, passTD: 4, passInt: -2,
+  rushYdPerPt: 10, rushTD: 6,
+  recYdPerPt: 10, recTD: 6, reception: 1,
+  fumLost: -2,
+};
+
 function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
@@ -41,6 +49,7 @@ function buildSeedState() {
     watchlist: [],           // playerIds you're targeting
     opponentTeams: [],       // [{id, name, playerIds}] teams you're tracking
     currentOpponentId: null, // id of the opponent team currently shown in the lineup tab
+    liveScoring: { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) },
   };
 }
 
@@ -59,6 +68,8 @@ function load() {
       if (!parsed.watchlist) parsed.watchlist = [];
       if (!parsed.opponentTeams) parsed.opponentTeams = [];
       if (parsed.currentOpponentId === undefined) parsed.currentOpponentId = null;
+      if (!parsed.liveScoring) parsed.liveScoring = { enabled: false, scoring: Object.assign({}, DEFAULT_SCORING) };
+      if (!parsed.liveScoring.scoring) parsed.liveScoring.scoring = Object.assign({}, DEFAULT_SCORING);
       return parsed;
     }
   } catch (e) { /* fall through to seed */ }
@@ -129,6 +140,7 @@ function initWeekSelect() {
     STATE.currentWeek = parseInt(sel.value, 10);
     save();
     renderLineupTab();
+    if (STATE.liveScoring.enabled) refreshLiveScoring();
   });
 }
 
@@ -424,6 +436,10 @@ function renderRosterGrid(containerId, assignment, onChange, weekMode, week) {
     if (p && weekMode) {
       if (p.bye === week) { flags += `<span class="status-pill status-Bye">BYE Wk ${week}</span>`; alertFlag = true; }
       if (p.injury !== "Healthy") { flags += `<span class="status-pill status-${p.injury}">${p.injury}</span>`; if (p.injury === "Out" || p.injury === "IR" || p.injury === "Doubtful") alertFlag = true; }
+      if (STATE.liveScoring.enabled) {
+        const pts = livePointsFor(p);
+        if (pts !== null) flags += `<span class="live-pts">${pts} pts</span>`;
+      }
     } else if (p) {
       if (p.injury !== "Healthy") flags += `<span class="status-pill status-${p.injury}">${p.injury}</span>`;
     }
@@ -467,7 +483,7 @@ function renderRosterGrid(containerId, assignment, onChange, weekMode, week) {
   });
 }
 
-function renderBenchTable(tbodyId, assignment) {
+function renderBenchTable(tbodyId, assignment, weekMode) {
   const tbody = document.getElementById(tbodyId);
   tbody.innerHTML = "";
   const usedIds = new Set(Object.values(assignment).filter(Boolean));
@@ -480,6 +496,7 @@ function renderBenchTable(tbodyId, assignment) {
       <td>${p.team}</td>
       <td>${p.bye}</td>
       <td></td>
+      ${weekMode ? `<td>${livePointsCellHtml(p)}</td>` : ""}
       <td></td>
     `;
     const injuryTd = tr.children[4];
@@ -498,7 +515,7 @@ function renderBenchTable(tbodyId, assignment) {
     });
     injuryTd.appendChild(injSel);
 
-    const actionsTd = tr.children[5];
+    const actionsTd = tr.children[weekMode ? 6 : 5];
     actionsTd.appendChild(mkBtn("Drop", () => setStatus(p.id, "available")));
     tbody.appendChild(tr);
   });
@@ -611,7 +628,7 @@ function renderLineupTab() {
     save();
     renderLineupTab();
   }, true, week);
-  renderBenchTable("lineupBenchTbody", assignment);
+  renderBenchTable("lineupBenchTbody", assignment, true);
 
   let alerts = 0;
   STATE.slots.forEach((slotName, idx) => {
@@ -742,9 +759,10 @@ function renderOpponentRoster() {
       <td>${p.bye}</td>
       <td>${p.injury}</td>
       <td>${weekLabel}</td>
+      <td>${livePointsCellHtml(p)}</td>
       <td></td>
     `;
-    const actionsTd = tr.children[6];
+    const actionsTd = tr.children[7];
     actionsTd.appendChild(mkBtn("Remove", () => {
       team.playerIds = team.playerIds.filter((id) => id !== p.id);
       save();
@@ -784,11 +802,15 @@ function matchupPlayerCell(p, week, side) {
   let flag = "";
   if (p.bye === week) flag = `<span class="status-pill status-Bye">BYE</span>`;
   else if (p.injury !== "Healthy") flag = `<span class="status-pill status-${p.injury}">${p.injury}</span>`;
+  const livePts = livePointsFor(p);
+  const valLine = livePts !== null
+    ? `<span class="live-pts">${livePts} live pts</span>`
+    : `<span class="matchup-player-val">${tradeValue(p)} val</span>`;
   return `
     <div class="matchup-player${alignCls}">
       <span class="matchup-player-name">${p.name}</span>
       <span class="matchup-player-meta"><span class="badge badge-${p.pos}">${p.pos}</span> ${p.team} ${flag}</span>
-      <span class="matchup-player-val">${tradeValue(p)} val</span>
+      ${valLine}
     </div>`;
 }
 
@@ -803,12 +825,25 @@ function renderMatchup() {
   const oppPool = team.playerIds.map((id) => playerById(id)).filter(Boolean);
   const oppAssignment = computeBestLineup(oppPool, week);
 
-  let totalMine = 0, totalOpp = 0;
+  const liveAvailable = STATE.liveScoring.enabled && LIVE.week === week;
+  let totalMine = 0, totalOpp = 0, missingMine = 0, missingOpp = 0, filledMine = 0, filledOpp = 0;
   STATE.slots.forEach((_, idx) => {
     const mine = myAssignment[idx] ? playerById(myAssignment[idx]) : null;
-    if (mine) totalMine += tradeValue(mine);
-    if (oppAssignment[idx]) totalOpp += tradeValue(oppAssignment[idx]);
+    const opp = oppAssignment[idx];
+    if (mine) {
+      filledMine++;
+      const live = liveAvailable ? livePointsFor(mine) : null;
+      if (liveAvailable && live === null) missingMine++;
+      totalMine += liveAvailable ? (live || 0) : tradeValue(mine);
+    }
+    if (opp) {
+      filledOpp++;
+      const live = liveAvailable ? livePointsFor(opp) : null;
+      if (liveAvailable && live === null) missingOpp++;
+      totalOpp += liveAvailable ? (live || 0) : tradeValue(opp);
+    }
   });
+  if (liveAvailable) { totalMine = Math.round(totalMine * 100) / 100; totalOpp = Math.round(totalOpp * 100) / 100; }
 
   const sum = totalMine + totalOpp;
   const pctMine = sum ? Math.round((totalMine / sum) * 100) : 50;
@@ -825,6 +860,10 @@ function renderMatchup() {
       </tr>`;
   }).join("");
 
+  const totalsLabel = liveAvailable
+    ? `Live pts (Week ${week})${(missingMine + missingOpp) ? " — some players missing live data" : ""}`
+    : "Est. value (rank-based) — not a real point projection";
+
   card.innerHTML = `
     <div class="matchup-teams">
       <div class="matchup-team">
@@ -834,7 +873,7 @@ function renderMatchup() {
       </div>
       <div class="matchup-vs">
         <div class="matchup-totals">${totalMine} <span class="vs">vs</span> ${totalOpp}</div>
-        <div class="matchup-sub">Est. value (rank-based) — not a real point projection</div>
+        <div class="matchup-sub">${totalsLabel}</div>
       </div>
       <div class="matchup-team">
         <div class="matchup-team-icon">🛡️</div>
@@ -1230,6 +1269,172 @@ document.getElementById("saveDraftTrackerBtn").addEventListener("click", () => {
   toast("Draft tracker settings saved.");
 });
 
+/* ================= LIVE SCORING ================= */
+// Pulls real weekly stat lines from Sleeper's free, public NFL stats API
+// (no account/key required) and converts them into fantasy points using the
+// user's scoring settings. This is best-effort: it's an unofficial API, so
+// network failures or shape changes are caught and surfaced as a status
+// message rather than breaking the app. Offense only (QB/RB/WR/TE) — K and
+// DST scoring rules vary too much to approximate honestly here.
+const SLEEPER_PLAYERS_CACHE_KEY = "ffhq_sleeper_players_cache_v1";
+const SLEEPER_PLAYERS_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12h — Sleeper asks not to hit this often
+const LIVE_SCORING_POSITIONS = ["QB", "RB", "WR", "TE"];
+
+// In-memory only — not persisted, since it's ephemeral and can be a few
+// hundred KB (all mapped players' stat lines for the current week).
+let LIVE = { byKey: {}, updatedAt: null, week: null, loading: false, error: null };
+
+function livePlayerKey(name, pos) {
+  return slugify(name) + "|" + pos;
+}
+
+async function ensureSleeperPlayerMap() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(SLEEPER_PLAYERS_CACHE_KEY) || "null");
+    if (cached && Date.now() - cached.fetchedAt < SLEEPER_PLAYERS_CACHE_TTL_MS) {
+      return cached.players;
+    }
+  } catch (e) { /* fall through to refetch */ }
+
+  const res = await fetch("https://api.sleeper.app/v1/players/nfl");
+  if (!res.ok) throw new Error("Sleeper players list request failed (" + res.status + ")");
+  const raw = await res.json();
+  // Slim it down to just what we need before caching — the raw payload is ~5MB.
+  const players = Object.values(raw)
+    .filter((p) => p && p.full_name && LIVE_SCORING_POSITIONS.includes(p.position))
+    .map((p) => ({ id: p.player_id, name: p.full_name, pos: p.position }));
+  try {
+    localStorage.setItem(SLEEPER_PLAYERS_CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), players }));
+  } catch (e) { /* localStorage full — fine, just won't cache */ }
+  return players;
+}
+
+function computeFantasyPoints(stats, scoring) {
+  if (!stats) return null;
+  let pts = 0;
+  pts += (stats.pass_yd || 0) / scoring.passYdPerPt;
+  pts += (stats.pass_td || 0) * scoring.passTD;
+  pts += (stats.pass_int || 0) * scoring.passInt;
+  pts += (stats.rush_yd || 0) / scoring.rushYdPerPt;
+  pts += (stats.rush_td || 0) * scoring.rushTD;
+  pts += (stats.rec_yd || 0) / scoring.recYdPerPt;
+  pts += (stats.rec_td || 0) * scoring.recTD;
+  pts += (stats.rec || 0) * scoring.reception;
+  pts += (stats.fum_lost || 0) * scoring.fumLost;
+  return Math.round(pts * 100) / 100;
+}
+
+async function refreshLiveScoring() {
+  if (!STATE.liveScoring.enabled) return;
+  const statusEl = document.getElementById("liveScoringStatus");
+  LIVE.loading = true;
+  LIVE.error = null;
+  if (statusEl) statusEl.textContent = "Fetching live stats…";
+
+  try {
+    const stateRes = await fetch("https://api.sleeper.app/v1/state/nfl");
+    if (!stateRes.ok) throw new Error("Sleeper state request failed (" + stateRes.status + ")");
+    const nflState = await stateRes.json();
+    const season = nflState.season;
+    const week = STATE.currentWeek;
+
+    const sleeperPlayers = await ensureSleeperPlayerMap();
+    const byId = {};
+    sleeperPlayers.forEach((p) => { byId[p.id] = p; });
+
+    const statsRes = await fetch(`https://api.sleeper.app/stats/nfl/regular/${season}/${week}`);
+    if (!statsRes.ok) throw new Error("Sleeper stats request failed (" + statsRes.status + ")");
+    const statsById = await statsRes.json();
+
+    const byKey = {};
+    Object.keys(statsById).forEach((sleeperId) => {
+      const meta = byId[sleeperId];
+      if (!meta) return;
+      const pts = computeFantasyPoints(statsById[sleeperId], STATE.liveScoring.scoring);
+      if (pts === null) return;
+      byKey[livePlayerKey(meta.name, meta.pos)] = pts;
+    });
+
+    LIVE = { byKey, updatedAt: Date.now(), week, loading: false, error: null };
+    const beforeWeek = nflState.week && week < nflState.week;
+    const notStarted = nflState.week && week > nflState.week;
+    if (statusEl) {
+      statusEl.textContent = notStarted
+        ? `Week ${week} hasn't started yet — no live stats to show.`
+        : `Live stats last updated ${new Date(LIVE.updatedAt).toLocaleTimeString()}${beforeWeek ? " (final)" : ""}.`;
+    }
+  } catch (e) {
+    LIVE.loading = false;
+    LIVE.error = e.message || String(e);
+    console.error("Live scoring fetch failed:", e);
+    if (statusEl) statusEl.textContent = `Couldn't load live stats (${LIVE.error}). This uses an unofficial free API, so it can be flaky — try again in a bit.`;
+  }
+  renderLineupTab();
+}
+
+function livePointsFor(p) {
+  if (!STATE.liveScoring.enabled) return null;
+  if (LIVE.week !== STATE.currentWeek) return null;
+  const val = LIVE.byKey[livePlayerKey(p.name, p.pos)];
+  return val === undefined ? null : val;
+}
+
+function livePointsCellHtml(p) {
+  if (!STATE.liveScoring.enabled) return "";
+  const pts = livePointsFor(p);
+  if (pts === null) return `<span class="live-pts-empty">—</span>`;
+  return `<span class="live-pts">${pts}</span>`;
+}
+
+let liveScoringTimer = null;
+function applyLiveScoringUiState() {
+  document.getElementById("liveScoringEnabled").checked = STATE.liveScoring.enabled;
+  const s = STATE.liveScoring.scoring;
+  document.getElementById("scorePassYdPerPt").value = s.passYdPerPt;
+  document.getElementById("scorePassTD").value = s.passTD;
+  document.getElementById("scorePassInt").value = s.passInt;
+  document.getElementById("scoreYdPerPt").value = s.rushYdPerPt;
+  document.getElementById("scoreTD").value = s.rushTD;
+  document.getElementById("scoreReception").value = s.reception;
+  document.getElementById("scoreFumLost").value = s.fumLost;
+
+  const statusEl = document.getElementById("liveScoringStatus");
+  if (!STATE.liveScoring.enabled) {
+    statusEl.textContent = "Live scoring is off.";
+    if (liveScoringTimer) { clearInterval(liveScoringTimer); liveScoringTimer = null; }
+  } else if (!liveScoringTimer) {
+    liveScoringTimer = setInterval(refreshLiveScoring, 60000);
+  }
+}
+
+document.getElementById("liveScoringEnabled").addEventListener("change", (e) => {
+  STATE.liveScoring.enabled = e.target.checked;
+  save();
+  applyLiveScoringUiState();
+  if (STATE.liveScoring.enabled) refreshLiveScoring();
+  else renderLineupTab();
+});
+
+document.getElementById("saveLiveScoringBtn").addEventListener("click", () => {
+  const num = (id) => parseFloat(document.getElementById(id).value);
+  const passYdPerPt = num("scorePassYdPerPt"), rushYdPerPt = num("scoreYdPerPt");
+  if (!passYdPerPt || !rushYdPerPt) { toast("Yards-per-point fields can't be zero."); return; }
+  STATE.liveScoring.scoring = {
+    passYdPerPt, passTD: num("scorePassTD"), passInt: num("scorePassInt"),
+    rushYdPerPt, rushTD: num("scoreTD"),
+    recYdPerPt: rushYdPerPt, recTD: num("scoreTD"), reception: num("scoreReception"),
+    fumLost: num("scoreFumLost"),
+  };
+  save();
+  toast("Scoring settings saved.");
+  if (STATE.liveScoring.enabled) refreshLiveScoring();
+});
+
+document.getElementById("refreshLiveScoringBtn").addEventListener("click", () => {
+  if (!STATE.liveScoring.enabled) { toast("Enable live scoring first."); return; }
+  refreshLiveScoring();
+});
+
 /* ================= RENDER ALL ================= */
 function renderAll() {
   renderBestAvailable();
@@ -1247,6 +1452,7 @@ function renderAll() {
   document.getElementById("draftNumTeams").value = STATE.draftSettings.numTeams;
   document.getElementById("draftYourSlot").value = STATE.draftSettings.yourSlot;
   document.getElementById("draftTotalRounds").value = STATE.draftSettings.totalRounds;
+  applyLiveScoringUiState();
   const freshText = "Data: " + formatDataDate(STATE.dataUpdatedAt);
   document.getElementById("dataFreshness").textContent = freshText;
   document.getElementById("dataFreshnessDetail").textContent = formatDataDate(STATE.dataUpdatedAt);
@@ -1277,3 +1483,4 @@ renderThemeToggle();
 
 initWeekSelect();
 renderAll();
+if (STATE.liveScoring.enabled) refreshLiveScoring();

@@ -758,10 +758,110 @@ function renderOpponentRoster() {
     : `No players added to ${team.name} yet.`;
 }
 
+// A read-only "best lineup" for a pool of players, mirroring autoOptimizeWeek's
+// slot-fill logic but without touching STATE — used to preview how an
+// opponent's tracked players would likely start this week.
+function computeBestLineup(pool, week) {
+  const scored = pool.map((p) => ({ player: p, severity: p.bye === week ? 3 : SEVERITY[p.injury] }));
+  const assignment = {};
+  const used = new Set();
+  const order = STATE.slots
+    .map((name, idx) => ({ name, idx }))
+    .sort((a, b) => (a.name === "FLEX") - (b.name === "FLEX"));
+  order.forEach(({ name, idx }) => {
+    const candidates = scored
+      .filter((c) => !used.has(c.player.id) && eligibleForSlot(name, c.player.pos))
+      .sort((a, b) => a.severity - b.severity || a.player.rank - b.player.rank);
+    assignment[idx] = candidates.length ? candidates[0].player : null;
+    if (candidates.length) used.add(candidates[0].player.id);
+  });
+  return assignment;
+}
+
+function matchupPlayerCell(p, week, side) {
+  const alignCls = side === "away" ? " away" : "";
+  if (!p) return `<div class="matchup-player${alignCls}"><span class="matchup-player-empty">Empty</span></div>`;
+  let flag = "";
+  if (p.bye === week) flag = `<span class="status-pill status-Bye">BYE</span>`;
+  else if (p.injury !== "Healthy") flag = `<span class="status-pill status-${p.injury}">${p.injury}</span>`;
+  return `
+    <div class="matchup-player${alignCls}">
+      <span class="matchup-player-name">${p.name}</span>
+      <span class="matchup-player-meta"><span class="badge badge-${p.pos}">${p.pos}</span> ${p.team} ${flag}</span>
+      <span class="matchup-player-val">${tradeValue(p)} val</span>
+    </div>`;
+}
+
+function renderMatchup() {
+  const card = document.getElementById("matchupCard");
+  const team = currentOpponentTeam();
+  if (!team) { card.hidden = true; card.innerHTML = ""; return; }
+  card.hidden = false;
+
+  const week = STATE.currentWeek;
+  const myAssignment = effectiveWeekAssignment(week);
+  const oppPool = team.playerIds.map((id) => playerById(id)).filter(Boolean);
+  const oppAssignment = computeBestLineup(oppPool, week);
+
+  let totalMine = 0, totalOpp = 0;
+  STATE.slots.forEach((_, idx) => {
+    const mine = myAssignment[idx] ? playerById(myAssignment[idx]) : null;
+    if (mine) totalMine += tradeValue(mine);
+    if (oppAssignment[idx]) totalOpp += tradeValue(oppAssignment[idx]);
+  });
+
+  const sum = totalMine + totalOpp;
+  const pctMine = sum ? Math.round((totalMine / sum) * 100) : 50;
+  const pctOpp = 100 - pctMine;
+  const mineFavored = pctMine === pctOpp ? null : pctMine > pctOpp;
+
+  const rows = STATE.slots.map((slotName, idx) => {
+    const mine = myAssignment[idx] ? playerById(myAssignment[idx]) : null;
+    return `
+      <tr class="matchup-row">
+        <td>${matchupPlayerCell(mine, week, "home")}</td>
+        <td class="matchup-slot-col">${slotName}</td>
+        <td>${matchupPlayerCell(oppAssignment[idx], week, "away")}</td>
+      </tr>`;
+  }).join("");
+
+  card.innerHTML = `
+    <div class="matchup-teams">
+      <div class="matchup-team">
+        <div class="matchup-team-icon">🏈</div>
+        <div class="matchup-team-name">Your Team</div>
+        <div class="matchup-team-sub">Week ${week} lineup</div>
+      </div>
+      <div class="matchup-vs">
+        <div class="matchup-totals">${totalMine} <span class="vs">vs</span> ${totalOpp}</div>
+        <div class="matchup-sub">Est. value (rank-based) — not a real point projection</div>
+      </div>
+      <div class="matchup-team">
+        <div class="matchup-team-icon">🛡️</div>
+        <div class="matchup-team-name">${team.name}</div>
+        <div class="matchup-team-sub">${oppPool.length} tracked player${oppPool.length === 1 ? "" : "s"}</div>
+      </div>
+    </div>
+    <div class="matchup-bar">
+      <div class="matchup-bar-fill-a" style="width:${pctMine}%"></div>
+      <div class="matchup-bar-fill-b" style="width:${pctOpp}%"></div>
+    </div>
+    <div class="matchup-bar-labels">
+      <span>${mineFavored === true ? "Favorite" : mineFavored === false ? "Underdog" : "Even"} ${pctMine}%</span>
+      <span>${pctOpp}% ${mineFavored === false ? "Favorite" : mineFavored === true ? "Underdog" : "Even"}</span>
+    </div>
+    <table class="matchup-table">
+      <thead><tr><th>Your Player</th><th>Slot</th><th>${team.name}</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
 function renderOpponentTracker() {
   renderOpponentTeamSelect();
   renderOpponentAddSelect();
   renderOpponentRoster();
+  renderMatchup();
 }
 
 document.getElementById("opponentTeamSelect").addEventListener("change", (e) => {

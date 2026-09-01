@@ -220,6 +220,22 @@ h3{margin:26px 0 12px;font-size:1.08rem;}
 .live-pts{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink-green);}
 .live-pts-empty{color:var(--muted-2);font-size:.8rem;}
 
+.suggestion-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.suggestion-row{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;
+}
+.suggestion-row .slot-tag{font-family:var(--font-display);font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:44px;}
+.suggestion-reason{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:var(--radius-pill);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.suggestion-reason.bye{background:#4f8cff26;color:var(--ink-blue);}
+.suggestion-reason.injury{background:#ff6b6b26;color:var(--ink-red);}
+.suggestion-reason.empty{background:#94a3b836;color:var(--ink-gray);}
+.suggestion-reason.upgrade{background:#12e6a026;color:var(--ink-green);}
+.suggestion-players{display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;font-size:.86rem;min-width:200px;}
+.suggestion-players .out{color:var(--muted);text-decoration:line-through;}
+.suggestion-players .in{font-weight:700;color:var(--text);}
+.suggestion-arrow{color:var(--muted-2);}
+
 .alerts{color:var(--warn);font-size:0.84rem;font-weight:700;}
 
 .draft-tracker{
@@ -374,6 +390,11 @@ details.bench-details > summary:hover{color:var(--text);}
 .matchup-team-name{font-weight:700;font-family:var(--font-display);font-size:.95rem;text-align:center;}
 .matchup-team-sub{font-size:.76rem;color:var(--muted);}
 .matchup-vs{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.matchup-verdict{font-family:var(--font-display);font-weight:700;font-size:.82rem;margin-bottom:2px;text-align:center;}
+.matchup-verdict.win{color:var(--accent);}
+.matchup-verdict.loss{color:var(--danger);}
+.matchup-verdict.even{color:var(--link);}
+.matchup-verdict.unknown{color:var(--muted);font-weight:600;}
 .matchup-totals{font-family:var(--font-display);font-weight:700;font-size:1.2rem;font-variant-numeric:tabular-nums;}
 .matchup-totals .vs{color:var(--muted-2);font-weight:500;font-size:.85rem;margin:0 8px;}
 .matchup-sub{font-size:.7rem;color:var(--muted-2);text-align:center;max-width:22ch;}
